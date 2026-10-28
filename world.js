@@ -192,8 +192,7 @@ function makeManya() {
   const brown = flat('#5e3c2f', 0.55), stitch = flat('#8c4a3e', 0.6);
   const blush = new THREE.MeshStandardMaterial({ color: C('#f2a9a2'), transparent: true, opacity: 0.45, roughness: 1 });
   blob(fleece, 0.42, 0.5, 0.36, 0, 0.5, 0, g);
-  const legL = limb(fleece, 0.13, 0.42, g, -0.17, 0.27, 0.06); legL.rotation.set(-1.35, 0, 0.08);
-  const legR = limb(fleece, 0.13, 0.42, g, 0.17, 0.27, 0.06); legR.rotation.set(-1.35, 0, -0.08);
+  h.legs = [limb(fleece, 0.13, 0.42, g, -0.17, 0.27, 0.06), limb(fleece, 0.13, 0.42, g, 0.17, 0.27, 0.06)];
   h.arms = [limb(fleece, 0.105, 0.44, g, -0.37, 0.84, 0), limb(fleece, 0.105, 0.44, g, 0.37, 0.84, 0)];
   const head = new THREE.Group(); head.position.set(0, 1.18, 0); g.add(head); h.head = head;
   blob(fleece, 0.44, 0.41, 0.4, 0, 0, 0, head);
@@ -375,6 +374,8 @@ function pose(id, o = {}) {
   h.eyes.forEach(e => { if (e.userData.sy0 == null) e.userData.sy0 = e.scale.y; e.userData.sy = e.userData.sy0 * ef; e.scale.y = e.userData.sy; });
   h.blinks = ef >= 0.8;
   h.brows.forEach(b => { b.visible = d.eyes === 'grumpy'; });
+  // ноги Мани: обычно вытянуты вперёд, в ванне — опущены вниз, чтобы не торчали сквозь стенку
+  if (h.legs) { const rx = d.legs === 'down' ? -0.3 : -1.35; h.legs[0].rotation.set(rx, 0, 0.08); h.legs[1].rotation.set(rx, 0, -0.08); }
   if (h.arms) { const a = d.arms || ['down', 'down']; h.arms.forEach((p, i) => { const v = ARM[a[i]] || ARM.down, side = i ? 1 : -1; p.rotation.set(v[0], 0, side * v[1]); }); }
   if (h.flips) { const a = d.flips || ['down', 'down']; h.flips.forEach((p, i) => { const v = FLIP[a[i]] || FLIP.down, side = i ? 1 : -1; p.rotation.set(v[0], 0, side * v[1]); }); }
   (h.acc || []).forEach(x => { if (x.parent) x.parent.remove(x); dispose(x); });
@@ -757,8 +758,12 @@ const ROOM_API = {
     FOAM.forEach(f => anims.push({ o: f, kind: 'shrink', t0: t + Math.random() * 0.6, dur: 0.5 })); FOAM = [];
     for (let i = 0; i < 26; i++) { const sp = sprite(TX.drop, BATH.x + (Math.random() - 0.5) * 1.4, 2.8, BATH.z + (Math.random() - 0.5) * 0.6, 0.07, null); anims.push({ o: sp, kind: 'drop', y0: 2.8 + Math.random() * 0.6, y1: BATH.water, t0: t + Math.random() * 1.2, dur: 0.55 }); }
   },
+  /* уточки падают в переднюю половину ванны; если в ней кто-то сидит — по бокам от него, а не за спину */
   duck() {
-    const d = duckModel(); d.position.set(BATH.x + (Math.random() - 0.5) * 1.5, 2.4, BATH.z + (Math.random() - 0.5) * 0.4); d.rotation.y = Math.random() * 6;
+    const busy = Object.values(H3).some(h => h.place.visible && Math.abs(h.place.position.x - BATH.x) < 0.6 && Math.abs(h.place.position.z - BATH.z) < 0.4);
+    const side = Math.random() < 0.5 ? -1 : 1;
+    const x = busy ? BATH.x + side * (0.45 + Math.random() * 0.45) : BATH.x + (Math.random() - 0.5) * 1.6;
+    const d = duckModel(); d.position.set(x, 2.4, BATH.z + 0.12 + Math.random() * 0.16); d.rotation.y = (Math.random() - 0.5) * 1.6;
     add(d); anims.push({ o: d, kind: 'duck', y0: 2.4, y1: BATH.water - 0.03, t0: t, dur: 0.6, ph: Math.random() * 6 });
   },
   /* балкон: полив, пузыри, голубь */

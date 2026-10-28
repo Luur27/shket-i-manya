@@ -394,7 +394,8 @@ const LAYOUT = {
 /* ванная: выбранный герой сидит в воде, остальные смотрят спереди */
 function bathSetup(id) {
   const front = { manya: { x: -1.05, z: 0.3, ry: 0.4 }, shket: { x: 0.05, z: 0.55, ry: -1.5 }, peng: { x: 1.1, z: 0.25, ry: -0.4 } };
-  const tub = { manya: { ry: 0 }, shket: { ry: -1.57, s: 0.8 }, peng: { ry: 0, s: 0.75 } };
+  // в ванне Маня опускает ноги, а длинный Шкет ложится вдоль ванны — чтобы никто не торчал сквозь стенку
+  const tub = { manya: { ry: 0, legs: 'down', z: -0.9 }, shket: { ry: -0.25, s: 0.8 }, peng: { ry: 0, s: 0.75 } };
   return W => ['manya', 'shket', 'peng'].forEach(h => {
     if (h === id) W.pose(h, Object.assign({ x: 0, z: -0.8, y: W.TOP + 0.22, eyes: 'happy' }, tub[h]));
     else W.pose(h, Object.assign({ eyes: 'open' }, front[h], id === 'shket' && h !== 'shket' ? {} : id !== 'shket' && h === 'shket' ? { x: id === 'manya' ? -0.6 : 0.6 } : {}));
