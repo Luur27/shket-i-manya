@@ -37,7 +37,7 @@ function makeCtx(o) {
   const now = o.now || new Date();
   const seed = o.seed == null ? Math.random() : o.seed;
   return {
-    tod: o.tod, now, away: o.away || 0, first: !!o.first, variant: o.variant || '',
+    tod: o.tod, now, away: o.away || 0, first: !!o.first, variant: o.variant || '', visits: o.visits || 0, fixed: o.fixed || {},
     months: monthsTogether(now), years: now.getFullYear() - CONFIG.since[0],
     nick: pick(CONFIG.nicks, seed), cheeky: pick(CONFIG.cheeky, (seed * 7.31) % 1), sign: pick(CONFIG.from, (seed * 3.71) % 1),
   };
@@ -47,6 +47,13 @@ const HR = 3600e3;
 const evening = c => c.tod === 'evening' || c.tod === 'night';
 const months = n => `${n} ${plural(n, ['месяц', 'месяца', 'месяцев'])}`;
 const years = n => `${n} ${plural(n, ['год', 'года', 'лет'])}`;
+
+/* кто ушёл гулять: как про него сказать, что в записке и что принёс (юзер иногда прячет игрушки и говорит Вете, что они ушли гулять) */
+const WHO = {
+  manya: { name: 'Маня', went: 'ушла', back: 'вернулась', left: 'оставила', brought: 'принесла', note: 'Ушла гулять, вернусь к ужину', noteLines: ['Ушла гулять,', 'вернусь к ужину.', '   Маня'], gift: 'цветочек', giftKind: 'flower' },
+  shket: { name: 'Шкет', went: 'ушёл', back: 'вернулся', left: 'оставил', brought: 'принёс', note: 'Ушёл гулять, вернусь к ужину', noteLines: ['Ушёл гулять,', 'вернусь к ужину.', '   Шкет'], gift: 'мандаринку прямо с дерева', giftKind: 'tangerine' },
+  peng: { name: 'Пингвин', went: 'ушёл', back: 'вернулся', left: 'оставил', brought: 'принёс', note: 'Ушёл гулять. Не скучайте. Ну, можно чуть-чуть', noteLines: ['Ушёл гулять.', 'Не скучайте.', 'Ну, чуть-чуть можно.'], gift: 'камушек в форме сердечка', giftKind: 'stone' },
+};
 
 /* ---------- сцены ---------- */
 const SCENES = [
@@ -210,7 +217,7 @@ const SCENES = [
       W.pose('manya', { x: -0.3, z: 0.1, s: 0.55, eyes: 'happy' });
       W.pose('shket', { x: 0.3, z: 0.3, s: 0.55, ry: -1.57, eyes: 'happy' });
       W.pose('peng', { x: 1.45, z: -0.1, s: 0.78, eyes: 'grumpy' });
-      W.P.note(-1.3, 0.85, ['мы скучали'], 0.25);
+      W.P.note(-1.3, 0.35, ['мы скучали'], 0.25);
     },
   },
   {
@@ -258,6 +265,54 @@ const SCENES = [
       W.pose('manya', { x: 0.85, z: -0.2, ry: -0.25, eyes: 'happy' });
       W.P.towel(0.95, 0.62);
       W.pose('peng', { x: 1.6, z: -0.7, ry: -0.5, eyes: 'grumpy' });
+    },
+  },
+
+  {
+    id: 'morningMess', title: 'Утро после сна', rarity: 'common', hint: 'утром',
+    when: c => c.tod === 'morning',
+    text: c => `Утро. Все раскиданы кто куда: Маня сползла с подушки, Шкет — звёздочкой пузом кверху, а ${P()} опять на полу — каждую ночь одно и то же. Говорит, сам так решил.`,
+    setup: morningSetup,
+  },
+  {
+    id: 'starfish', title: 'Звёздочка', rarity: 'common',
+    when: () => true,
+    text: c => `Шкет залез на подушку посмотреть в окно — и упал. Как всегда, приземлился пузом кверху, лапы в разные стороны. Говорит, так и задумано: он загорает.`,
+    setup: W => {
+      W.pose('shket', { x: 0.05, z: 0.25, ry: 0.7, s: 0.86, lie: 'star', eyes: 'happy' });
+      W.pose('manya', { x: -1.05, z: -0.1, ry: 0.45, eyes: 'wide', arms: ['eyes', 'eyes'] });
+      W.pose('peng', { x: 1.15, z: -0.15, ry: -0.5, eyes: 'grumpy', flips: ['down', 'out'] });
+    },
+  },
+  {
+    id: 'walk', title: 'Ушли гулять', rarity: 'common',
+    when: c => c.visits > 3,
+    text: c => {
+      const w = WHO[c.variant] || WHO.shket;
+      return `${w.name} ${w.went} гулять и ${w.left} записку: «${w.note}». Остальные делают вид, что не волнуются.`;
+    },
+    setup: (W, c) => {
+      const who = WHO[c.variant] ? c.variant : 'shket';
+      W.pose(who, { visible: false });
+      const others = ['manya', 'shket', 'peng'].filter(h => h !== who);
+      W.pose(others[0], { eyes: 'wide' });
+      W.pose(others[1], { eyes: 'wide' });
+      W.P.note(0.05, 0.3, WHO[who].noteLines, 0.12);   // ближе к центру кровати: передний край закрывает свёрнутое одеяло
+    },
+  },
+  {
+    id: 'back', title: 'Вернулись с прогулки', rarity: 'common', hint: 'после «Ушли гулять»',
+    when: () => false,
+    text: c => {
+      const w = WHO[c.variant] || WHO.shket;
+      return `${w.name} ${w.back} с прогулки и ${w.brought} тебе ${w.gift}. Говорит, гулять — хорошо, а дома лучше.`;
+    },
+    setup: (W, c) => {
+      const who = WHO[c.variant] ? c.variant : 'shket';
+      ['manya', 'shket', 'peng'].forEach(h => W.pose(h, h === 'shket' ? { eyes: 'happy', ry: -1.4 } : { eyes: 'happy' }));
+      const p = W.heroPos(who);
+      W.P.souvenir(WHO[who].giftKind, p.x + (who === 'peng' ? -0.5 : 0.5), Math.min(p.z + 0.2, 0.35));
+      W.P.hearts([[p.x, 1.9, p.z]]);
     },
   },
 
@@ -344,14 +399,26 @@ function hideSetup(spot) {
     W.pose('shket', Object.assign({ eyes: 'happy' }, HIDE_SPOTS[spot].shket));
   };
 }
-/* ---------- уложить спать ---------- */
+/* ---------- уложить спать: как у Веты — Маня и Шкет у подушки, Пингвин в ногах ---------- */
 function sleepSetup(W) {
   W.sky({ tod: 'night' });
-  W.pose('manya', { x: -0.9, z: -0.5, ry: 0.2, eyes: 'closed', arms: ['hug', 'hug'], anim: 'sleep' });
-  W.pose('peng', { x: 1.0, z: -0.5, ry: -0.2, eyes: 'closed', anim: 'sleep' });
+  W.pose('manya', { x: -0.95, z: -0.75, ry: 0.25, eyes: 'closed', arms: ['hug', 'hug'], anim: 'sleep' });
+  W.pose('shket', { x: -0.15, z: -0.7, ry: -1.4, s: 0.8, eyes: 'closed', anim: 'sleep' });
   W.P.blanket();
-  W.pose('shket', { x: 0.05, z: 0.3, y: W.TOP + 0.62, ry: -1.57, s: 0.7, eyes: 'closed', anim: 'sleep' });
-  W.P.zzz(-0.75, 1.65, -0.4); W.P.zzz(1.15, 2.05, -0.4); W.P.zzz(0.2, 1.35, 0.3);
+  W.pose('peng', { x: 1.35, z: 0.95, s: 0.62, lie: 'side', eyes: 'closed', anim: 'sleep' });
+  W.P.zzz(-0.75, 1.75, -0.6); W.P.zzz(0.05, 1.2, -0.6); W.P.zzz(0.75, 0.75, 0.95);
+}
+/* утро после сна: все раскиданы — Шкет звёздочкой пузом кверху, Пингвин на полу у кровати.
+   c.fixed — кого уже поправили кнопками («Перевернуть Шкета», «Поднять Пингвина») */
+function morningSetup(W, c) {
+  const fixed = (c && c.fixed) || {};
+  W.sky({ tod: 'morning' });
+  if (fixed.shket && fixed.peng) W.pose('manya', { eyes: 'happy' });
+  else W.pose('manya', { x: -0.75, z: -0.75, y: W.TOP + 0.02, s: 0.85, lie: 'side', eyes: 'closed', anim: 'sleep' });
+  if (fixed.shket) W.pose('shket', { ry: -1.4, eyes: 'happy' });
+  else W.pose('shket', { x: 0.35, z: 0.1, ry: 0.7, s: 0.8, lie: 'star', eyes: 'closed', anim: 'sleep' });
+  if (fixed.peng) W.pose('peng', { eyes: 'grumpy', flips: ['down', 'out'] });
+  else { W.pose('peng', { x: 0.75, y: -0.4, z: 1.6, s: 0.62, lie: 'side', eyes: 'grumpy' }); W.aim(-0.45); }
 }
 
 /* ---------- квартира: комнаты, их раскладки и занятия ---------- */
@@ -486,7 +553,8 @@ const UNLOCKS = [
 /* ---------- реплики: {nick} / {Nick} — прозвище, выбирается заново на каждую реплику ---------- */
 const TALK = {
   shket: ['Я не толстый, я плюшевый.', '{Nick}, ты пришла!', 'Я тебя ждал. Маня тоже, но меньше.', 'Мандаринку бы…', 'Можно я сегодня сплю в серединке?', 'Я храбрый. Я с тобой на капельницу ходил.', 'Погладь за ушком. Нет, за другим.',
-    '{Nick} вернулась!', '{Nick}, почеши пузико. Ну пожалуйста.', 'Я без тебя мандарины считал. Их стало меньше.', 'Лучше тебя никого нет, {nick}.', '{Nick}, а ты меня сегодня возьмёшь с собой?'],
+    '{Nick} вернулась!', '{Nick}, почеши пузико. Ну пожалуйста.', 'Я без тебя мандарины считал. Их стало меньше.', 'Лучше тебя никого нет, {nick}.', '{Nick}, а ты меня сегодня возьмёшь с собой?',
+    'Когда я падаю, всегда приземляюсь пузом кверху. Это талант.', 'Если я лежу звёздочкой — не трогай, я загораю.'],
   manya: ['Бе-е.', 'Шкет опять занял подушку.', 'Я овечка, мне можно спать днём.', '{Nick}, обними!', 'Я тебя ждала и считала овец. Сбилась на себе.', 'Шёрстка сегодня особенно мягкая. Проверь.', 'Я не трусиха, я осторожная.',
     'Бе-е! {Nick} пришла!', 'Мы скучали, {nick}. Особенно я.', '{Nick}, ты сегодня особенно красивая.', 'Посмотрим вечером кино, {nick}?', 'Можно я сегодня сплю у тебя под щекой?'],
   // характер Пингвина: Вета кладёт его спать под ноги — он ворчит, что он не подставка, но втайне гордится
@@ -538,12 +606,14 @@ const HIDE = {
 };
 const SLEEPY = ['Ещё пять минуточек…', 'Мне снилась ты, {nick}…', 'Zzz… рыбка…', 'Тсс… все спят.', 'Не буди, мне снится мандарин.'];
 const WAKE = ['Доброе утро, {nick}!', 'Уже утро? Ура, {nick}!', 'Выспались! Спасибо, {nick}.'];
+/* Шкета перевернули с пуза на лапы */
+const STAR = ['Я не упал. Я загорал.', 'Это поза для звёзд. А я — звезда.', 'Мир перевернулся. А, нет, это я.', 'Я так и планировал. Честно.'];
 
 window.SCENES_API = {
   CONFIG, SCENES, byId: Object.fromEntries(SCENES.map(s => [s.id, s])),
-  HIDE_SPOTS, hideSetup, sleepSetup, ROOMS, LAYOUT, KITCHEN_LOOK, ENTER, INGREDIENTS, RECIPES, COOK_LINES,
+  HIDE_SPOTS, hideSetup, sleepSetup, morningSetup, WHO, ROOMS, LAYOUT, KITCHEN_LOOK, ENTER, INGREDIENTS, RECIPES, COOK_LINES,
   bathSetup, hugSetup, ROOM_LINES, UNLOCKS,
-  TALK, HUNGRY, PET, HELLO, FOODS, LIKES, FEED, WEAR, WEAR_LINES, UNDRESS, HIDE, SLEEPY, WAKE,
+  TALK, HUNGRY, PET, HELLO, FOODS, LIKES, FEED, WEAR, WEAR_LINES, UNDRESS, HIDE, SLEEPY, WAKE, STAR,
   plural, cap, pick, makeCtx, daysTogether, monthsTogether,
 };
 })();

@@ -219,7 +219,14 @@ function makeShket() {
   const dark = plush('#8a5a33', TX.plush, 0.9, '#e0b48a', 0.02);
   const eyeM = shiny('#1a110b');
   blob(fur, 0.62, 0.36, 0.4, 0, 0.36, 0, g);
-  for (const [x, z] of [[-0.36, -0.2], [-0.36, 0.2], [0.34, -0.2], [0.34, 0.2]]) blob(dark, 0.1, 0.08, 0.1, x, 0.06, z, g);
+  // лапы на шарнирах: обычно — под пузом, в позе «звёздочкой» — раскинуты в стороны
+  h.paws = [[-0.36, -0.2], [-0.36, 0.2], [0.34, -0.2], [0.34, 0.2]].map(([x, z]) => {
+    const p = new THREE.Group(); p.position.set(x, 0.22, z); g.add(p);
+    p.userData = { sx: Math.sign(x), sz: Math.sign(z), paw: blob(dark, 0.1, 0.08, 0.1, 0, -0.16, 0, p) };
+    return p;
+  });
+  // светлое пузико — видно, только когда Шкет лежит кверху пузом
+  h.belly = blob(plush('#c9a079', TX.plush, 0.9, '#f6dcbc', 0.02), 0.44, 0.1, 0.27, 0, 0.07, 0, g);
   const head = new THREE.Group(); head.position.set(0.5, 0.5, 0); g.add(head); h.head = head;
   blob(fur, 0.3, 0.28, 0.3, 0, 0, 0, head);
   blob(fur, 0.22, 0.2, 0.24, 0.2, -0.05, 0, head);
@@ -228,7 +235,7 @@ function makeShket() {
   h.eyes = [-1, 1].map(s => blob(eyeM, 0.036, 0.036, 0.03, 0.15, 0.09, s * 0.235, head));
   h.brows = brows(flat('#3a2315', 0.6), head, [[0.15, 0.16, -0.24], [0.15, 0.16, 0.24]], [-0.45, -0.45]);
   h.anchor = { top: [-0.02, 0.27, 0, 0.95], face: [0.3, 0.1, 0, 0.95, Math.PI / 2], side: [-0.04, 0.24, 0.16, 0.8], onhead: [0.02, 0.31, 0, 1] };
-  h.halfW = 0.4; h.top = 0.82;
+  h.halfW = 0.4; h.top = 0.82; h.backH = 0.72;
   return h;
 }
 function makePenguin() {
@@ -370,6 +377,14 @@ function pose(id, o = {}) {
   h.place.rotation.set(0, d.ry, 0);
   h.place.scale.setScalar(d.s);
   if (d.lie === 'side') { h.place.rotation.z = d.lieDir || Math.PI / 2; h.place.position.y = (d.y != null ? d.y : TOP) + h.halfW * d.s; }
+  // «звёздочкой»: на спине, пузом кверху, лапы в разные стороны — так Шкет приземляется, когда падает
+  if (d.lie === 'star') { h.place.rotation.x = Math.PI; h.place.position.y = (d.y != null ? d.y : TOP) + (h.backH || h.halfW) * d.s; }
+  if (h.belly) h.belly.visible = d.lie === 'star';
+  if (h.paws) h.paws.forEach(p => {
+    const u = p.userData, star = d.lie === 'star';
+    p.rotation.set(star ? -u.sz * 1.25 : 0, 0, star ? u.sx * 0.55 : 0);
+    u.paw.scale.set(0.1, star ? 0.19 : 0.08, 0.1); u.paw.position.y = star ? -0.2 : -0.16;
+  });
   const ef = EYE[d.eyes || 'open'];
   h.eyes.forEach(e => { if (e.userData.sy0 == null) e.userData.sy0 = e.scale.y; e.userData.sy = e.userData.sy0 * ef; e.scale.y = e.userData.sy; });
   h.blinks = ef >= 0.8;
@@ -489,8 +504,10 @@ const P = {
     return add(g);
   },
   note(x, z, lines, ry = 0.2) {
-    const tt = textTex(lines, 256, 140, { size: 44, color: '#5a7fb5', bg: '#fffdf6' });
-    const m = mesh(new THREE.PlaneGeometry(0.6, 0.33), flat('#ffffff', 0.9, tt), null, x, TOP + 0.005, z);
+    // размер шрифта подстраивается под самую длинную строку, высота записки — под число строк
+    const size = Math.min(44, Math.floor(520 / Math.max(...lines.map(l => l.length)))), hh = Math.round(40 + lines.length * size * 1.2);
+    const tt = textTex(lines, 320, hh, { size, color: '#5a7fb5', bg: '#fffdf6' });
+    const m = mesh(new THREE.PlaneGeometry(0.7, 0.7 * hh / 320), flat('#ffffff', 0.9, tt), null, x, TOP + 0.005, z);
     m.rotation.set(-Math.PI / 2, 0, ry); m.castShadow = false;
     return add(m);
   },
@@ -629,6 +646,22 @@ const P = {
     m.rotation.z = Math.PI / 2; m.scale.set(1, 1, 0.75); m.material.side = THREE.DoubleSide; return add(m);
   },
   hearts(pts, s = 0.22) { pts.forEach(p => sprite(TX.heart, p[0], p[1], p[2], s, 'float')); },
+  /* подарок с прогулки: цветочек, мандаринка или камушек-сердечко */
+  souvenir(kind, x, z) {
+    if (kind === 'tangerine') return P.tangerine(x, TOP, z, 0.1);
+    const g = new THREE.Group(); g.position.set(x, TOP, z);
+    if (kind === 'flower') {
+      const st = flat('#4f8c3c', 0.7);
+      seg(st, [0, 0.01, 0], [0.04, 0.02, 0.25], 0.01, g);
+      const fm = plush('#f28aa0', null, 0.6, '#ffffff');
+      for (let i = 0; i < 5; i++) { const a = i / 5 * Math.PI * 2; blob(fm, 0.04, 0.015, 0.04, 0.04 + Math.cos(a) * 0.04, 0.03, 0.28 + Math.sin(a) * 0.04, g); }
+      blob(plush('#ffd36b', null, 0.6), 0.025, 0.02, 0.025, 0.04, 0.04, 0.28, g);
+    } else {
+      const geo = new THREE.ExtrudeGeometry(heartShape(0.9), { depth: 0.05, bevelEnabled: true, bevelThickness: 0.03, bevelSize: 0.02, bevelSegments: 4 });
+      const st = mesh(geo, plush('#a7a3a0', TX.plush, 0.7, '#ffffff', 0.03), g, 0, 0.03, 0); st.rotation.x = -Math.PI / 2 + 0.25;
+    }
+    return add(g);
+  },
   zzz(x, y, z) { labelSprite('z', x, y, z, 0.22); const a = labelSprite('Z', x + 0.15, y + 0.2, z, 0.3); a.userData.delay = 0.8; },
   notes(x, y, z) { ['♪', '♫', '♪'].forEach((n, i) => sprite(textTex([n], 128, 128, { size: 100, color: '#8a6fc4' }), x + i * 0.5, y + (i % 2) * 0.3, z, 0.3, 'float')); },
   screenLight(x, y, z) { const l = new THREE.PointLight(C('#bfe0ff'), 0.8, 3, 2); l.position.set(x, y, z); anims.push({ o: l, kind: 'flicker', ph: 0, base: 0.8 }); return add(l); },
@@ -1102,6 +1135,7 @@ let skyOpt = {};
 const API = {
   TOP, P,
   pose, sky(o) { Object.assign(skyOpt, o); },
+  aim(dy) { aim = dy; },                 // опустить или поднять взгляд камеры на эту сцену
   heroPos(id) { return H3[id].place.position.clone(); },
 };
 /* старые предметы убираем вместе с геометрией, материалами и надписями, чтобы память не копилась */
@@ -1128,6 +1162,7 @@ function stage(setup, ctx, room = 'bedroom') {
   Object.values(H3).forEach(h => { h.acc = []; });
   anims = [];
   skyOpt = {};
+  aim = 0;
   Object.keys(H3).forEach(id => pose(id, {}));
   if (setup) setup(API, ctx);
   pigeon.visible = !!skyOpt.pigeon;
@@ -1137,6 +1172,8 @@ function stage(setup, ctx, room = 'bedroom') {
 /* ---------- камера ---------- */
 const target = new THREE.Vector3(0, 0.95, -0.1);
 let az = 0, el = 0.34, azV = 0, dist = 7;
+// baseTy — прицел по размеру кадра; aim — сдвиг, который просит сцена (утром взгляд ниже, на пол)
+let baseTy = 0.95, aim = 0, aimNow = 0;
 function frame() {
   const r = box.getBoundingClientRect();
   W = Math.max(1, r.width); H = Math.max(1, r.height);
@@ -1149,7 +1186,8 @@ function fit(aspect) {
   // узкий кадр — камера дальше и прицел выше (чтобы внизу не было пустого пола);
   // низкий широкий (когда открыта шторка) — камера ближе, чтобы герои не мельчили
   dist = Math.max(4.7, 1.85 / (half * aspect));
-  target.y = Math.max(0.95, 0.9 + (dist - 5.6) * 0.45);
+  baseTy = Math.max(0.95, 0.9 + (dist - 5.6) * 0.45);
+  target.y = baseTy + aimNow;
   camera.updateProjectionMatrix();
 }
 function placeCamera() {
@@ -1194,6 +1232,7 @@ function snapshot(setup, ctx, w, h, view, type = 'image/jpeg') {
   const saveAz = az; az = 0;
   renderer.setSize(w, h, false);
   camera.aspect = w / h; fit(camera.aspect);
+  target.y = baseTy + aim;
   if (view) { dist = view.dist; target.y = view.ty; }      // крупный план — для иконки
   placeCamera();
   renderer.render(scene, camera);
@@ -1209,6 +1248,7 @@ let clock, t = 0, dragging = false;
 function tick() {
   const dt = Math.min(clock.getDelta(), 0.05); t += dt;
   if (!dragging) { az += azV * dt * 0.01; azV *= Math.exp(-dt * 5); az *= Math.exp(-dt * 0.5); }
+  aimNow += (aim - aimNow) * (1 - Math.exp(-dt * 3)); target.y = baseTy + aimNow;
   placeCamera();
   Object.values(H3).forEach((h, i) => {
     h.sqv += (-130 * h.sq - 9 * h.sqv) * dt; h.sq += h.sqv * dt;

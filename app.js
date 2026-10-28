@@ -74,7 +74,7 @@ WD.setOutfit(state.outfit);
 let room = 'bedroom', mode = 'scene', game = null, cook = null, bath = null, popped = 0;
 function ctxNow(extra) {
   const d = now();
-  return S.makeCtx(Object.assign({ tod: todOf(d), now: d, seed: state.cur ? state.cur.seed : Math.random() }, extra));
+  return S.makeCtx(Object.assign({ tod: todOf(d), now: d, seed: state.cur ? state.cur.seed : Math.random(), visits: state.visits }, extra));
 }
 function setCaption(label, story, opts = {}) {
   $('away').textContent = label;
@@ -106,6 +106,7 @@ function show(fade) {
 function restage() {
   if (mode === 'hide') WD.stage(S.hideSetup(game.spot), ctxNow({}), 'bedroom');
   else if (mode === 'sleep') WD.stage(S.sleepSetup, ctxNow({}), 'bedroom');
+  else if (mode === 'morning') WD.stage(S.morningSetup, ctxNow({ fixed: morning }), 'bedroom');
   else if (mode === 'scene') { const sc = S.byId[state.cur.id] || S.byId.cuddle; WD.stage(sc.setup, ctxNow({ variant: state.cur.variant, away: state.cur.away }), 'bedroom'); }
   else if (room === 'kitchen') (cook && cook.look ? S.KITCHEN_LOOK[cook.look] : S.LAYOUT.kitchen)(WD);
   else if (mode === 'bath' && bath && bath.id) S.bathSetup(bath.id)(WD);
@@ -210,6 +211,7 @@ $('bar').addEventListener('click', e => {
 /* ---------- какая сцена выпадет ---------- */
 function pickScene(ctx) {
   if (ctx.first) return 'hello';
+  if (state.walkOut) return 'back';          // кто-то ушёл гулять — в следующий раз он возвращается
   const today = dayKey(ctx.now);
   const specials = S.SCENES.filter(s => s.rarity === 'special' && s.when(ctx));
   if (specials.length && state.specialDay !== today) { state.specialDay = today; return specials[0].id; }
@@ -241,7 +243,11 @@ function arrive() {
     const isNew = !state.seen[id];
     if (isNew) { state.seen[id] = t; state.fresh.push(id); }
     state.visits++;
-    state.cur = { id, at: t, label: first ? 'Знакомство' : `Пока тебя не было · ${fmtAway(away)}`, variant: '', isNew, seed: Math.random(), away };
+    // «Ушли гулять»: запоминаем, кто ушёл, — в следующий раз он вернётся с подарком
+    let variant = '';
+    if (id === 'walk') { variant = S.pick(['manya', 'shket', 'peng']); state.walkOut = variant; }
+    if (id === 'back') { variant = state.walkOut || 'shket'; state.walkOut = null; }
+    state.cur = { id, at: t, label: first ? 'Знакомство' : `Пока тебя не было · ${fmtAway(away)}`, variant, isNew, seed: Math.random(), away };
     state.last = t;
     save();
     show(true);
@@ -342,6 +348,7 @@ function endTouch(e) {
   if (tp.id) {
     if (mode === 'hide') return hideTapHero(tp.id);
     if (mode === 'bath' && bath && bath.step === 'pick') return bathPick(tp.id);
+    if (mode === 'morning' && !morning[tp.id] && (tp.id === 'shket' || tp.id === 'peng')) return fixMorning(tp.id);
     if (picked && (picked.tray === 'food' || picked.tray === 'wear')) return use(tp.id, picked);
     return talk(tp.id);
   }
@@ -802,6 +809,8 @@ $('gameBtns').addEventListener('click', e => {
   const b = e.target.closest('[data-act]');
   if (!b) return;
   const act = b.dataset.act;
+  if (mode === 'morning' && act === 'lift') return fixMorning('peng');
+  if (mode === 'morning' && act === 'flip') return fixMorning('shket');
   if (mode === 'hide') {
     if (act === 'giveup') hideFound(true);
     else if (act === 'again') startHide();
@@ -821,13 +830,43 @@ $('gameBtns').addEventListener('click', e => {
 });
 
 /* ---------- уложить спать ---------- */
+/* как у Веты: Маня и Шкет у подушки, Пингвин в ногах — а утром он, конечно, на полу */
 function toggleSleep() {
   closeTray();
-  if (mode === 'sleep') { show(true); greet(S.WAKE); return; }
-  mode = 'sleep'; game = null;
+  if (mode === 'sleep') return wakeUp();
+  room = 'bedroom'; mode = 'sleep'; game = null;
   setChrome('night');
   WD.stage(S.sleepSetup, ctxNow({}), 'bedroom');
-  setCaption('Спокойной ночи', 'Тсс… Все легли спать. Шкет, как всегда, устроился сверху. Тапни, если очень надо кого-то разбудить.');
+  setCaption('Спокойной ночи', 'Тсс… Все легли: Маня и Шкет у подушки, Пингвин в ногах — как всегда. Посмотрим, долежит ли он до утра.');
+  renderBar();
+}
+/* утро: Шкет звёздочкой пузом кверху, Пингвин на полу; morning — кого уже поправили */
+let morning = {};
+function morningButtons() {
+  return [!morning.shket && ['flip', 'Перевернуть Шкета'], !morning.peng && ['lift', 'Поднять Пингвина']].filter(Boolean);
+}
+function wakeUp() {
+  mode = 'morning'; morning = {};
+  setChrome('morning');
+  WD.stage(S.morningSetup, ctxNow({ fixed: morning }), 'bedroom');
+  setCaption('Доброе утро', 'Утро! Маня сползла с подушки, Шкет — опять звёздочкой пузом кверху, а Пингвин… на полу. Как он туда попадает — загадка.', { buttons: morningButtons() });
+  renderBar();
+  setTimeout(() => { if (mode === 'morning' && !morning.peng) say('peng', 'Я… я сам слез. Мне тут удобно.'); }, 1200);
+}
+function fixMorning(id) {
+  morning[id] = true;
+  WD.stage(S.morningSetup, ctxNow({ fixed: morning }), 'bedroom');
+  WD.react(id, 'hop'); burst(id, 4);
+  say(id, id === 'peng' ? 'Спасибо. Я не падал. Почти.' : S.pick(S.STAR));
+  if (morning.shket && morning.peng) {
+    mode = 'idle';
+    setTimeout(() => say('manya', fill('Доброе утро, {nick}!')), 1300);
+    setCaption('Доброе утро', 'Все на месте. Шкет и Пингвин делают вид, что ничего не было.');
+  } else {
+    setCaption('Доброе утро', id === 'peng'
+      ? 'Пингвин на месте. А Шкет всё ещё лежит звёздочкой и делает вид, что так и надо.'
+      : 'Шкет снова на лапах. А Пингвин всё ещё на полу — ждёт, когда его заметят.', { buttons: morningButtons() });
+  }
   renderBar();
 }
 
