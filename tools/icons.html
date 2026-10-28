@@ -1,37 +1,35 @@
 <!doctype html>
 <html lang="ru"><head><meta charset="utf-8"><title>Иконки</title>
-<style>body{margin:0;padding:12px;background:#ccc;font:14px system-ui}svg{width:256px;height:256px;border-radius:56px;display:block}#log{margin-top:8px}</style>
+<style>body{margin:0;padding:12px;background:#ccc;font:14px system-ui}img{width:256px;height:256px;border-radius:56px;display:block}#box{position:fixed;left:0;top:0;width:512px;height:512px;opacity:0;pointer-events:none}</style>
 </head><body>
-<div id="out"></div><p id="log">Рисую…</p>
-<script src="../art.js"></script>
+<div id="box"></div><img id="out" alt=""><p id="log">Рисую…</p>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="../world.js"></script>
+<script src="../scenes.js"></script>
 <script>
-// Генератор иконок: рисует SVG и сохраняет PNG через локальный сервер (PUT /__save). Открывать с ?save=1.
-const A = ART, uid = 'i';
-const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="58 300 300 300" width="512" height="512">${A.defs(uid, 'day')}
-<rect x="0" y="0" width="400" height="700" fill="url(#wp-${uid})"/>
-<circle cx="208" cy="430" r="150" fill="#fff6ef" opacity=".55"/>
-${A.penguin({ uid, x: 300, y: 610, s: 0.95, eyes: 'happy' })}
-${A.manya({ uid, x: 160, y: 640, s: 1.18, eyes: 'happy' })}
-${A.capy({ uid, x: 222, y: 618, s: 1.05, eyes: 'happy', mouth: 'smile' })}
-</svg>`;
-document.getElementById('out').innerHTML = svg;
+// Генератор иконок: снимок трёх героев крупным планом, PNG сохраняется через локальный сервер (PUT /__save). Открывать с ?save=1.
+WORLD.init(document.getElementById('box'));
+const setup = W => {
+  W.pose('manya', { x: -0.55, z: -0.15, ry: 0.3, eyes: 'happy', hat: null, bow: false, glasses: false });
+  W.pose('shket', { x: 0.02, z: 0.45, ry: -1.45, eyes: 'happy', hat: null, bow: false, glasses: false });
+  W.pose('peng', { x: 0.62, z: -0.25, ry: -0.3, eyes: 'happy', hat: null, bow: false, glasses: false });
+};
+const ctx = SCENES_API.makeCtx({ tod: 'day', now: new Date() });
+function shot(size) { return WORLD.snapshot(setup, ctx, size, size, { dist: 4.2, ty: 1.15 }); }
+const big = shot(512);
+document.getElementById('out').src = big;
 async function save(size, name) {
-  const img = new Image();
-  img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
-  await img.decode();
-  const c = document.createElement('canvas');
-  c.width = c.height = size;
-  const g = c.getContext('2d');
-  g.fillStyle = '#ebcbc5';
-  g.fillRect(0, 0, size, size);
-  g.drawImage(img, 0, 0, size, size);
-  const blob = await new Promise(r => c.toBlob(r, 'image/png'));
+  const url = WORLD.snapshot(setup, ctx, size, size, { dist: 4.2, ty: 1.15 }, 'image/png');
+  const blob = await (await fetch(url)).blob();
   const res = await fetch('/__save?name=' + encodeURIComponent(name), { method: 'PUT', body: blob });
   return name + ': ' + res.status;
 }
 if (new URLSearchParams(location.search).has('save')) {
-  Promise.all([save(180, 'icons/icon-180.png'), save(192, 'icons/icon-192.png'), save(512, 'icons/icon-512.png')])
-    .then(r => { document.getElementById('log').textContent = r.join(' · '); });
+  (async () => {
+    const out = [];
+    for (const [s, n] of [[180, 'icons/icon-180.png'], [192, 'icons/icon-192.png'], [512, 'icons/icon-512.png']]) out.push(await save(s, n));
+    document.getElementById('log').textContent = out.join(' · ');
+  })();
 } else document.getElementById('log').textContent = 'Предпросмотр. Сохранить: ?save=1';
 </script>
 </body></html>

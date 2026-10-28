@@ -1,30 +1,39 @@
 <!doctype html>
 <html lang="ru"><head><meta charset="utf-8"><title>dev: все сцены</title>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;600&family=Pangolin&display=swap">
-<link rel="stylesheet" href="app.css">
 <style>
-body{margin:0;background:#ddd;display:grid;grid-template-columns:repeat(6,1fr);gap:6px;padding:6px;height:auto;user-select:auto}
+body{margin:0;background:#ddd;font:12px/1.2 system-ui}
+#grid{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;padding:6px}
 figure{margin:0;background:#fff;border-radius:8px;overflow:hidden}
-figure svg{display:block;width:100%;aspect-ratio:2/3}
-figcaption{font:12px/1.2 system-ui;padding:3px 6px}
+figure img{display:block;width:100%}
+figcaption{padding:3px 6px}
+#box{position:fixed;left:0;top:0;width:300px;height:450px;opacity:0;pointer-events:none}
 </style>
 </head><body>
-<script src="art.js"></script>
+<div id="box"></div><div id="grid"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="world.js"></script>
 <script src="scenes.js"></script>
 <script>
-// ?tod=night — все сцены в одном времени суток; ?v=box — показать вариант «resolved»
-const S = SCENES_API, A = ART, q = new URLSearchParams(location.search);
+// Снимки всех сцен для проверки раскладки. ?tod=night, ?only=box,fort, ?v=box (вариант после кормёжки), ?extra=1 — прятки и сон
+const S = SCENES_API, q = new URLSearchParams(location.search);
 const TODS = ['day', 'evening', 'night', 'morning'];
-let n = 0, h = '';
+WORLD.init(document.getElementById('box'));
 const only = q.get('only') ? q.get('only').split(',') : null;
-if (only) document.body.style.gridTemplateColumns = `repeat(${only.length},1fr)`;
-for (const s of S.SCENES.filter(x => !only || only.includes(x.id))) {
-  const tod = q.get('tod') || (s.when({ tod: 'night', away: 1e9, now: new Date(2026, 10, 19), months: 16, years: 1 }) ? 'night' : TODS[n % 4]);
-  const now = s.id === 'anniversary' ? new Date(2026, 6, 19) : s.id === 'newyear' ? new Date(2026, 11, 31) : s.id === 'feb14' ? new Date(2027, 1, 14) : s.id === 'mar8' ? new Date(2027, 2, 8) : new Date(2026, 10, 19);
-  const ctx = S.makeCtx({ uid: 'd' + (++n), tod, now, away: 40 * 3600e3, seed: .2, variant: q.get('v') === s.id ? 'resolved' : '' });
-  const opt = s.roomOpt ? s.roomOpt(ctx) : {};
-  h += `<figure><svg viewBox="0 0 400 600" preserveAspectRatio="xMidYMid slice">${A.defs(ctx.uid, tod)}${A.room(ctx.uid, tod, opt)}${s.draw(ctx)}${A.overlay(ctx.uid, tod)}${s.glow ? s.glow(ctx) : ''}</svg><figcaption>${s.id} · ${tod}</figcaption></figure>`;
-}
-document.body.innerHTML = h;
+const list = S.SCENES.filter(s => !only || only.includes(s.id)).map(s => ({ id: s.id, setup: s.setup, scene: s }));
+if (q.has('extra')) { S.HIDE_SPOTS.forEach((h, i) => list.push({ id: 'прятки: ' + h.where, setup: S.hideSetup(i) })); list.push({ id: 'сон', setup: S.sleepSetup }); }
+if (only) document.getElementById('grid').style.gridTemplateColumns = `repeat(${Math.min(list.length, 3)},1fr)`;
+let n = 0;
+(document.fonts ? document.fonts.load('40px Pangolin') : Promise.resolve()).then(() => {
+  const h = list.map(item => {
+    const s = item.scene;
+    const tod = q.get('tod') || (s && s.when({ tod: 'night', away: 1e9, now: new Date(2026, 10, 19), months: 16, years: 1 }) === false ? 'evening' : TODS[n++ % 4]);
+    const now = item.id === 'anniversary' ? new Date(2026, 6, 19) : item.id === 'newyear' ? new Date(2026, 11, 31) : item.id === 'feb14' ? new Date(2027, 1, 14) : item.id === 'mar8' ? new Date(2027, 2, 8) : new Date(2026, 10, 19);
+    const ctx = S.makeCtx({ tod, now, away: 40 * 3600e3, seed: .2, variant: q.get('v') === item.id ? 'resolved' : '' });
+    const url = WORLD.snapshot(item.setup, ctx, 600, 900);
+    return `<figure><img src="${url}"><figcaption>${item.id} · ${tod}</figcaption></figure>`;
+  }).join('');
+  document.getElementById('grid').innerHTML = h;
+});
 </script>
 </body></html>

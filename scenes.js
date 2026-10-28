@@ -1,14 +1,14 @@
-/* Шкет и Маня — сцены. Каждая сцена: когда может выпасть, что написано, что нарисовано.
-   Всё личное (имя, дата, прозвища, записки) — в CONFIG, чтобы править в одном месте. */
+/* Шкет и Маня — сцены. Каждая сцена: когда может выпасть, что написано и как всё расставлено в 3D-комнате.
+   setup(W, c): W.pose(герой, поза) и W.P.<предмет>(...). Координаты: x — влево/вправо, z — к нам, верх матраса W.TOP.
+   Всё личное (имя, дата, прозвища, подписи) — в CONFIG, чтобы править в одном месте. */
 (function () {
 'use strict';
-const A = window.ART;
 
 const CONFIG = {
   name: 'Вета',
   from: ['Женя', 'Попка-карамелька'], // подпись в записках — как Вета его называет, выбирается случайно
   since: [2025, 6, 19],         // живут вместе с 19 июля 2025 (месяц с нуля: 6 = июль)
-  penguin: 'Пингвин',           // имя пингвина, если появится
+  penguin: 'Пингвин',
   nicks: ['тефтелька', 'фрикаделька', 'кошка', 'львёнок', 'принцесса', 'чебупелька'],
   cheeky: ['попка', 'писька', 'попка-фрикаделька', 'писька-фрикаделька', 'тефтеля', 'фрикаделька', 'кошка', 'львёнок', 'принцесса', 'чебупелька'],
 };
@@ -31,28 +31,22 @@ function monthsTogether(d) {
 }
 function daysTogether(d) {
   const [y, m, day] = CONFIG.since;
-  const a = Date.UTC(y, m, day), b = Date.UTC(d.getFullYear(), d.getMonth(), d.getDate());
-  return Math.round((b - a) / 86400000);
+  return Math.round((Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) - Date.UTC(y, m, day)) / 86400000);
 }
 function makeCtx(o) {
   const now = o.now || new Date();
   const seed = o.seed == null ? Math.random() : o.seed;
   return {
-    uid: o.uid, tod: o.tod, now, away: o.away || 0, first: !!o.first, variant: o.variant || '',
+    tod: o.tod, now, away: o.away || 0, first: !!o.first, variant: o.variant || '',
     months: monthsTogether(now), years: now.getFullYear() - CONFIG.since[0],
     nick: pick(CONFIG.nicks, seed), cheeky: pick(CONFIG.cheeky, (seed * 7.31) % 1), sign: pick(CONFIG.from, (seed * 3.71) % 1),
   };
 }
 const P = () => CONFIG.penguin;
-const H = 3600e3;
+const HR = 3600e3;
 const evening = c => c.tod === 'evening' || c.tod === 'night';
-
-/* короткие вызовы героев с общими параметрами сцены */
-const K = (c, o) => A.capy(Object.assign({ uid: c.uid }, o));
-const M = (c, o) => A.manya(Object.assign({ uid: c.uid }, o));
-const Pg = (c, o) => A.penguin(Object.assign({ uid: c.uid }, o));
-const hearts = (pts, s = 0.8) => pts.map(([x, y], i) => `<g class="float" style="animation-delay:${i * 0.5}s">${A.heartShape(x, y, s)}</g>`).join('');
-const party = c => K(c, { x: 238, y: 512, s: 0.78, eyes: 'happy', mouth: 'smile', hat: 'party', hatColor: '#9fe0c8' });
+const months = n => `${n} ${plural(n, ['месяц', 'месяца', 'месяцев'])}`;
+const years = n => `${n} ${plural(n, ['год', 'года', 'лет'])}`;
 
 /* ---------- сцены ---------- */
 const SCENES = [
@@ -60,223 +54,307 @@ const SCENES = [
     id: 'hello', title: 'Знакомство', rarity: 'common', hint: 'при первом заходе',
     when: () => false,
     text: c => `Привет, ${CONFIG.name}! Это мы — Шкет, Маня и ${P()}. Теперь мы живём ещё и здесь. Уходи сколько хочешь: когда вернёшься, мы будем чем-нибудь заняты.`,
-    draw: c => Pg(c, { x: 330, y: 516, s: 0.66, eyes: 'happy', flippers: [16, 120] })
-      + M(c, { x: 118, y: 510, s: 0.78, eyes: 'happy', arms: [14, 150] })
-      + K(c, { x: 230, y: 522, s: 0.82, eyes: 'happy', mouth: 'smile', pose: 'sit' })
-      + hearts([[200, 380], [290, 330], [80, 330]]),
+    setup: W => {
+      W.pose('manya', { eyes: 'happy', arms: ['down', 'wave'] });
+      W.pose('shket', { eyes: 'happy', ry: -1.4 });
+      W.pose('peng', { eyes: 'happy', flips: ['down', 'wave'] });
+      W.P.hearts([[-0.5, 2.0, 0], [0.4, 2.3, 0], [1.5, 2.5, -0.2]]);
+    },
   },
   {
     id: 'cuddle', title: 'Обнимашки', rarity: 'common',
     when: () => true,
     text: c => `Шкет и Маня обнимались — говорят, тренировались к твоему приходу. ${P()} делает вид, что ему всё равно. Ему не всё равно.`,
-    draw: c => Pg(c, { x: 336, y: 516, s: 0.64, eyes: 'wide', flippers: [16, 40] })
-      + M(c, { x: 150, y: 506, s: 0.8, eyes: 'happy', arms: [-38, -38] })
-      + K(c, { x: 168, y: 528, s: 0.74, eyes: 'happy', mouth: 'smile' })
-      + hearts([[150, 330], [205, 300], [110, 300]]),
+    setup: W => {
+      W.pose('manya', { x: -0.55, z: -0.15, ry: 0.4, eyes: 'happy', arms: ['hug', 'hug'] });
+      W.pose('shket', { x: -0.4, z: 0.42, ry: -1.9, eyes: 'happy' });
+      W.pose('peng', { x: 1.2, z: -0.25, ry: -0.6, eyes: 'wide', flips: ['down', 'out'] });
+      W.P.hearts([[-0.7, 1.9, 0.1], [-0.2, 2.1, 0.1]]);
+    },
   },
   {
     id: 'movie', title: 'Кино без тебя', rarity: 'common', hint: 'вечером',
     when: evening,
     text: c => `Включили кино без тебя. Шкет клянётся, что дальше начала не смотрел. Попкорн съел тоже не он. ${P()} плакал на грустном месте, но просит никому не говорить.`,
-    draw: c => Pg(c, { x: 322, y: 512, s: 0.64, eyes: 'wide' })
-      + M(c, { x: 104, y: 508, s: 0.76, eyes: 'wide', arms: [-20, -20] })
-      + K(c, { x: 206, y: 506, s: 0.74, eyes: 'wide', mouth: 'open' })
-      + A.laptopBack(196, 590, 0.72) + A.popcorn(330, 572),
-    glow: c => `<ellipse cx="200" cy="500" rx="170" ry="90" fill="url(#screen-${c.uid})" opacity=".55" class="screenglow" pointer-events="none"/>`,
+    setup: W => {
+      W.pose('manya', { x: -0.95, z: -0.35, ry: 0.15, eyes: 'wide', arms: ['hug', 'hug'] });
+      W.pose('shket', { x: 0.05, z: -0.3, ry: -1.57, eyes: 'wide' });
+      W.pose('peng', { x: 1.0, z: -0.35, ry: -0.15, eyes: 'wide' });
+      W.P.laptopBack(0.05, 0.42, 0.85);
+      W.P.popcorn(1.0, 0.5);
+      W.P.screenLight(0.05, W.TOP + 0.45, 0.4);
+    },
   },
   {
     id: 'pillow', title: 'Маня-подушка', rarity: 'common', hint: 'ночью или утром',
     when: c => c.tod === 'night' || c.tod === 'morning',
     text: c => `Шкет уснул на Мане, как на подушке. Маня не шевелится уже два часа — боится разбудить. ${P()} опять в ногах и всё это запоминает.`,
-    draw: c => M(c, { x: 150, y: 504, s: 0.82, eyes: 'closed', arms: [-30, -30] })
-      + K(c, { x: 150, y: 486, s: 0.62, eyes: 'closed', pose: 'low' })
-      + Pg(c, { x: 360, y: 552, s: 0.5, eyes: 'grumpy', tilt: -90 })
-      + A.zzz(206, 380),
+    setup: W => {
+      W.pose('manya', { x: -0.6, z: -0.35, ry: 0.15, eyes: 'closed', arms: ['hug', 'hug'], anim: 'sleep' });
+      W.pose('shket', { x: -0.55, z: 0.1, y: W.TOP + 0.14, ry: -1.57, s: 0.62, eyes: 'closed', anim: 'sleep' });
+      W.pose('peng', { x: 1.35, z: 0.6, s: 0.66, eyes: 'grumpy', lie: 'side' });
+      W.P.zzz(-0.25, 1.3, 0.2);
+    },
   },
   {
     id: 'tangerine', title: 'Мандариновая шапочка', rarity: 'common',
     when: () => true,
     text: c => `Шкет положил мандаринку на голову и сидит. Говорит, у капибар так принято. Маня в шоке. ${P()} завидует: у него мандаринка скатывается.`,
-    draw: c => Pg(c, { x: 66, y: 516, s: 0.6, eyes: 'grumpy' })
-      + M(c, { x: 300, y: 508, s: 0.76, eyes: 'wide', arms: [14, 30] })
-      + K(c, { x: 168, y: 522, s: 0.86, eyes: 'happy', mouth: 'smile', onHead: 'tangerine' })
-      + A.tangerine(96, 532, 9),
+    setup: W => {
+      W.pose('shket', { x: 0, z: 0.45, ry: -1.4, eyes: 'happy', onHead: 'tangerine' });
+      W.pose('manya', { eyes: 'wide', arms: ['down', 'out'] });
+      W.pose('peng', { eyes: 'grumpy' });
+      W.P.tangerine(0.75, W.TOP, 0.5, 0.09);
+    },
   },
   {
     id: 'window', title: 'Ждали у окна', rarity: 'common', hint: 'если не заходить пару часов',
-    when: c => c.away >= 3 * H, boost: c => c.away >= 3 * H,
-    roomOpt: () => ({ pigeon: true }),
+    when: c => c.away >= 3 * HR, boost: c => c.away >= 3 * HR,
     text: c => `Сидели у окна и высматривали тебя. Маня дважды приняла голубя за тебя. ${P()} сказал, что не ждал. Ждал больше всех.`,
-    draw: c => M(c, { x: 110, y: 506, s: 0.76, eyes: 'open', arms: [14, 60] })
-      + Pg(c, { x: 322, y: 512, s: 0.68, eyes: 'wide', flippers: [16, 30] })
-      + K(c, { x: 214, y: 522, s: 0.8, pose: 'sit', eyes: 'wide' }),
+    setup: W => {
+      W.sky({ pigeon: true });
+      W.pose('manya', { x: 0.0, z: -0.5, ry: 1.9, eyes: 'open' });
+      W.pose('shket', { x: -0.7, z: 0.2, ry: 0.67, eyes: 'wide' });
+      W.pose('peng', { x: 1.25, z: -0.55, ry: 2.3, eyes: 'wide' });
+    },
   },
   {
     id: 'tea', title: 'Чаепитие', rarity: 'common', hint: 'днём',
     when: c => c.tod !== 'night',
     text: c => `Устроили чаепитие. Розовую чашку не трогают — это твоя. ${P()} третий раз спрашивает, когда ты придёшь.`,
-    draw: c => M(c, { x: 92, y: 506, s: 0.7, eyes: 'happy', arms: [-24, 14] })
-      + Pg(c, { x: 332, y: 512, s: 0.6, eyes: 'open' })
-      + K(c, { x: 214, y: 506, s: 0.7, eyes: 'open', mouth: 'smile' })
-      + A.teapot(150, 566) + A.cup(214, 572) + A.cup(262, 574, '#fff') + A.cup(312, 578, '#f6c6cf', true)
-      + A.heartShape(312, 532, 0.6) + A.plate(100, 580, A.cookie(88, 574, 9) + A.cookie(108, 576, 9)),
+    setup: W => {
+      W.pose('manya', { eyes: 'happy', arms: ['down', 'hold'] });
+      W.pose('shket', { x: 0.05, z: -0.3, ry: -1.57, eyes: 'open' });
+      W.pose('peng', { eyes: 'open' });
+      W.P.teapot(-0.45, 0.62); W.P.cup(-0.05, 0.75); W.P.cup(0.3, 0.7); W.P.cup(0.65, 0.6, '#f6c6cf', true);
+      W.P.hearts([[0.65, W.TOP + 0.45, 0.6]], 0.16);
+      W.P.cookies(-1.0, 0.75);
+    },
   },
   {
     id: 'hide', title: 'Прятки', rarity: 'common',
     when: () => true,
     text: c => `Играют в прятки. Шкет спрятался под одеяло, но уши торчат. ${P()} спрятался за маленькой подушкой и уверен, что его не видно. Маня честно считает до ста.`,
-    draw: c => M(c, { x: 96, y: 506, s: 0.72, eyes: 'closed', arms: [-162, -162], armsOver: true })
-      + K(c, { x: 214, y: 546, s: 0.8, eyes: 'closed' })
-      + `<path d="M120 556C130 488 300 478 312 556Z" fill="url(#duvet-${c.uid})" stroke="#c9c6bd" stroke-width="2.4"/>`
-      + Pg(c, { x: 330, y: 514, s: 0.64, eyes: 'happy' })
-      + A.pillow(330, 470, 74, 44, '#f6e1e5'),
+    setup: W => {
+      W.pose('manya', { eyes: 'closed', arms: ['eyes', 'eyes'] });
+      W.pose('shket', { x: 0.1, z: 0.15, ry: -1.3, s: 0.8, eyes: 'closed' });
+      W.P.lump(0.1, 0.3, 0.78, 0.58, 0.66);
+      W.pose('peng', { eyes: 'happy' });
+      W.P.pillow(1.05, W.TOP + 0.28, 0.32, 0.32, 0.22, 0.12, '#f6e1e5');
+    },
   },
   {
     id: 'book', title: 'Сказка на ночь', rarity: 'common', hint: 'вечером',
     when: evening,
     text: c => `Маня читает сказку на ночь. Шкет уснул на второй странице, но просит не останавливаться. А ${P()} больше всего любит место про море.`,
-    draw: c => M(c, { x: 206, y: 506, s: 0.8, eyes: 'open', arms: [-34, -34], armsOver: true, extra: A.book(0, -62, 1.05) })
-      + K(c, { x: 92, y: 524, s: 0.7, eyes: 'closed' })
-      + Pg(c, { x: 336, y: 514, s: 0.6, eyes: 'happy' })
-      + A.zzz(130, 450),
+    setup: W => {
+      W.pose('manya', { x: 0, z: -0.3, ry: 0, eyes: 'open', arms: ['hold', 'hold'] });
+      W.P.book(0, W.TOP + 0.66, 0.14, 0.45, Math.PI);
+      W.pose('shket', { x: -1.15, z: 0.35, ry: -1.0, eyes: 'closed', anim: 'sleep' });
+      W.P.zzz(-0.95, 1.0, 0.35);
+      W.pose('peng', { x: 1.15, eyes: 'happy' });
+    },
   },
   {
     id: 'strike', title: 'Забастовка', rarity: 'common',
     when: () => true,
     text: c => `${P()} объявил забастовку: он больше не подставка для ног. Требования — своя подушка и уважение. Шкет и Маня обдумывают.`,
-    draw: c => A.sign(302, 380, ['Я НЕ', 'ПОДСТАВКА!'], 6)
-      + M(c, { x: 344, y: 514, s: 0.56, eyes: 'wide', arms: [-30, -30] })
-      + Pg(c, { x: 190, y: 516, s: 0.7, eyes: 'grumpy', flippers: [16, 84] })
-      + K(c, { x: 66, y: 530, s: 0.62, eyes: 'wide' }),
+    setup: W => {
+      W.pose('peng', { x: 0.25, z: -0.1, ry: -0.1, eyes: 'grumpy', flips: ['down', 'up'] });
+      W.P.sign(1.2, 0.05, ['Я НЕ', 'ПОДСТАВКА!']);
+      W.pose('shket', { x: -0.55, z: 0.5, ry: -1.0, eyes: 'wide' });
+      W.pose('manya', { x: -1.25, z: -0.3, ry: 0.45, eyes: 'wide', arms: ['hug', 'hug'] });
+    },
   },
   {
     id: 'dance', title: 'Дискотека', rarity: 'common', hint: 'вечером',
     when: evening,
     text: c => `Включили музыку и танцуют. Маня — красиво, ${P()} — с достоинством, Шкет — как может.`,
-    draw: c => M(c, { x: 104, y: 506, s: 0.74, eyes: 'happy', arms: [140, 150], anim: 'hop' })
-      + Pg(c, { x: 316, y: 514, s: 0.64, eyes: 'happy', flippers: [70, 70], anim: 'wiggle' })
-      + K(c, { x: 210, y: 524, s: 0.78, eyes: 'happy', mouth: 'open', pose: 'sit', anim: 'wiggle' })
-      + A.notes(140, 330),
+    setup: W => {
+      W.pose('manya', { eyes: 'happy', arms: ['up', 'up'], anim: 'hop' });
+      W.pose('shket', { eyes: 'happy', ry: -1.4, anim: 'wiggle' });
+      W.pose('peng', { eyes: 'happy', flips: ['up', 'up'], anim: 'wiggle' });
+      W.P.notes(-0.8, 2.1, 0);
+    },
   },
   {
     id: 'box', title: 'Шкет обиделся', rarity: 'common', hint: 'если не заходить пару дней',
-    when: c => c.away >= 36 * H, boost: () => true,
+    when: c => c.away >= 36 * HR, boost: () => true,
     text: c => `Тебя долго не было, и Шкет обиделся: сидит в коробке. Маня говорит, мандаринка поможет. Попробуй его покормить.`,
-    draw: c => c.variant === 'resolved'
-      ? M(c, { x: 104, y: 506, s: 0.72, eyes: 'happy', arms: [150, 150] })
-        + A.boxBack(310, 552) + A.boxFront(310, 552, 'ОБИЖЕН') + `<path d="M266 520L354 534" stroke="#d9434b" stroke-width="4" stroke-linecap="round"/>`
-        + K(c, { x: 210, y: 528, s: 0.8, eyes: 'happy', mouth: 'smile' }) + hearts([[220, 400], [170, 380]])
-      : A.boxBack(160, 552) + K(c, { x: 166, y: 522, s: 0.78, eyes: 'grumpy' }) + A.boxFront(160, 552, 'ОБИЖЕН')
-        + M(c, { x: 304, y: 508, s: 0.74, eyes: 'open', arms: [14, -40], extra: A.tangerine(-6, -78, 11) })
-        + Pg(c, { x: 382, y: 522, s: 0.5, eyes: 'wide' }),
+    setup: (W, c) => {
+      if (c.variant === 'resolved') {
+        W.pose('shket', { x: -0.45, z: 0.5, ry: -1.6, eyes: 'happy' });
+        W.P.box(0.6, 0.5, 'ОБИЖЕН', true);
+        W.pose('manya', { eyes: 'happy', arms: ['up', 'up'] });
+        W.pose('peng', { eyes: 'happy' });
+        W.P.hearts([[-0.45, 1.3, 0.5], [0.0, 1.5, 0.4]]);
+        return;
+      }
+      W.P.box(-0.05, 0.42, 'ОБИЖЕН');
+      W.pose('shket', { x: -0.05, z: 0.4, ry: -1.57, s: 0.7, eyes: 'grumpy' });
+      W.pose('manya', { x: -1.15, eyes: 'open', arms: ['down', 'hold'] });
+      W.P.tangerine(-0.82, W.TOP + 0.52, 0.24, 0.08);
+      W.pose('peng', { x: 1.15, eyes: 'wide' });
+    },
     resolved: { char: 'shket', text: c => `Отошёл! Мандаринка — лучшее извинение. Коробку Шкет оставил: вдруг ещё пригодится.` },
   },
   {
     id: 'fort', title: 'Подушечная крепость', rarity: 'common', hint: 'если не заходить сутки',
-    when: c => c.away >= 20 * H, boost: () => true,
+    when: c => c.away >= 20 * HR, boost: () => true,
     text: c => `Пока тебя не было, построили крепость из подушек. На флаге — «Ждём Вету». Пароль — обнимашки. ${P()} стоит на страже.`,
-    draw: c => A.pillowFort(c.uid, false)
-      + M(c, { x: 166, y: 514, s: 0.5, eyes: 'happy', arms: [14, 14] })
-      + K(c, { x: 200, y: 522, s: 0.52, eyes: 'happy', mouth: 'smile' })
-      + A.pillowFort(c.uid, true) + A.flag(200, 384, 'Ждём Вету')
-      + Pg(c, { x: 350, y: 520, s: 0.58, eyes: 'grumpy', flippers: [16, 50] })
-      + A.note(96, 572, ['мы скучали'], -6, 110),
+    setup: W => {
+      W.P.pillow(-0.8, W.TOP + 0.36, 0.15, 0.2, 0.4, 0.42);
+      W.P.pillow(0.8, W.TOP + 0.36, 0.15, 0.2, 0.4, 0.42, '#f3efe8');
+      W.P.roof(0, 0.15, 0.82, 0.95);
+      W.P.flag(0, W.TOP + 1.3, 0.15, 'Ждём Вету');
+      W.pose('manya', { x: -0.3, z: 0.1, s: 0.55, eyes: 'happy' });
+      W.pose('shket', { x: 0.3, z: 0.3, s: 0.55, ry: -1.57, eyes: 'happy' });
+      W.pose('peng', { x: 1.45, z: -0.1, s: 0.78, eyes: 'grumpy' });
+      W.P.note(-1.3, 0.85, ['мы скучали'], 0.25);
+    },
   },
   {
     id: 'throne', title: 'Месть Пингвина', rarity: 'rare',
     when: () => true,
     text: c => `Пока никого нет, ${P()} спит на твоей подушке, а Шкета с Маней положил в ногах. Говорит, это восстановление справедливости.`,
-    draw: c => Pg(c, { x: 226, y: 420, s: 0.58, eyes: 'closed', tilt: -90 })
-      + A.zzz(70, 370)
-      + M(c, { x: 278, y: 532, s: 0.52, eyes: 'grumpy', legs: 'tucked', arms: [-30, -30] })
-      + K(c, { x: 352, y: 540, s: 0.56, eyes: 'grumpy', flip: true }),
+    setup: W => {
+      W.pose('peng', { x: 0.05, z: -0.95, y: W.TOP + 0.3, s: 0.78, lie: 'side', eyes: 'closed', anim: 'sleep' });
+      W.P.zzz(-1.15, 1.45, -0.8);
+      W.pose('manya', { x: 0.75, z: 0.35, s: 0.7, ry: -0.5, eyes: 'grumpy', arms: ['hug', 'hug'] });
+      W.pose('shket', { x: 1.3, z: 0.6, ry: -2.6, s: 0.7, eyes: 'grumpy' });
+    },
   },
   {
     id: 'sick', title: 'Больничка', rarity: 'rare',
     when: () => true,
     text: c => `Играют в больничку. Маню положили под капельницу с компотом, а Шкет держит её за ручку — как тогда держал тебя. Говорит, у него опыт.`,
-    draw: c => A.ivStand(58, 520, 168, 470)
-      + M(c, { x: 278, y: 488, s: 0.64, eyes: 'open', tilt: -90, arms: [14, 14] })
-      + Pg(c, { x: 360, y: 520, s: 0.5, eyes: 'wide' })
-      + K(c, { x: 272, y: 556, s: 0.74, eyes: 'open', mouth: 'smile', hat: 'nurse', flip: true })
-      + hearts([[220, 400]]),
+    setup: W => {
+      W.pose('manya', { x: 0.35, z: -0.55, s: 0.8, lie: 'side', eyes: 'open' });
+      W.P.ivStand(-1.55, -0.45, -0.25, W.TOP + 0.45, -0.3);
+      W.pose('shket', { x: 0.3, z: 0.4, ry: -2.6, eyes: 'open', hat: 'nurse' });
+      W.pose('peng', { x: 1.5, z: -0.3, ry: -0.5, eyes: 'wide' });
+      W.P.hearts([[-0.1, 1.3, 0]]);
+    },
   },
   {
     id: 'meatball', title: 'В гости заходила тефтеля', rarity: 'rare',
     when: () => true,
     text: c => `Заходила Злая тефтеля. Ворчала, требовала подливы. Шкет предложил ей мандаринку — не помогло. ${P()} спрятался за Маню.`,
-    draw: c => Pg(c, { x: 352, y: 508, s: 0.58, eyes: 'wide' })
-      + M(c, { x: 312, y: 512, s: 0.66, eyes: 'wide', arms: [30, 30] })
-      + K(c, { x: 94, y: 526, s: 0.7, eyes: 'open', extra: A.tangerine(96, -30, 10) })
-      + A.meatball(204, 548, 34),
+    setup: W => {
+      W.P.meatball(0.15, 0.55, 0.32);
+      W.pose('shket', { x: -0.9, z: 0.45, ry: -0.5, eyes: 'open' });
+      W.P.tangerine(-0.3, W.TOP, 0.78, 0.08);
+      W.pose('manya', { x: 0.95, z: -0.25, ry: -0.3, eyes: 'wide', arms: ['hug', 'hug'] });
+      W.pose('peng', { x: 1.55, z: -0.8, ry: -0.5, eyes: 'wide' });
+    },
   },
   {
     id: 'onsen', title: 'Мандариновая ванна', rarity: 'rare',
     when: () => true,
     text: c => `Шкет устроил себе ванну с мандаринками, как настоящая японская капибара. Маня охраняет полотенце. ${P()} ждёт очередь, но вода тёплая, а он за холодную.`,
-    draw: c => A.tub(160, 572, true) + K(c, { x: 150, y: 530, s: 0.72, eyes: 'closed', mouth: 'smile', onHead: 'tangerine' }) + A.tub(160, 572, false)
-      + Pg(c, { x: 352, y: 512, s: 0.56, eyes: 'grumpy' })
-      + M(c, { x: 296, y: 512, s: 0.66, eyes: 'happy', arms: [14, 14] }) + A.towel(298, 566),
+    setup: W => {
+      W.P.tub(-0.35, 0.35, 0.62);
+      W.pose('shket', { x: -0.35, z: 0.35, y: W.TOP + 0.08, ry: -1.4, s: 0.78, eyes: 'closed', onHead: 'tangerine' });
+      W.pose('manya', { x: 0.85, z: -0.2, ry: -0.25, eyes: 'happy' });
+      W.P.towel(0.95, 0.62);
+      W.pose('peng', { x: 1.6, z: -0.7, ry: -0.5, eyes: 'grumpy' });
+    },
   },
 
   /* ---------- особые дни ---------- */
   {
     id: 'month', title: 'Наше 19-е', rarity: 'special', hint: 'откроется 19-го числа',
     when: c => c.now.getDate() === CONFIG.since[2] && c.now.getMonth() !== CONFIG.since[1] && c.months >= 1,
-    text: c => `Сегодня 19-е: ${c.months} ${plural(c.months, ['месяц', 'месяца', 'месяцев'])} как вы живёте вместе. Шкет, Маня и ${P()} испекли торт. Свечку задуваешь ты.`,
-    note: c => `${cap(c.cheeky)}, ${c.months} ${plural(c.months, ['месяц', 'месяца', 'месяцев'])} вместе. Спасибо, что ты у меня есть. Люблю тебя.`,
-    draw: c => A.banner(`${c.months} ${plural(c.months, ['месяц', 'месяца', 'месяцев'])}!`)
-      + Pg(c, { x: 340, y: 516, s: 0.6, eyes: 'happy', hat: 'party', hatColor: '#ffd36b' })
-      + M(c, { x: 92, y: 508, s: 0.7, eyes: 'happy', arms: [14, 150], hat: 'party' })
-      + K(c, { x: 236, y: 500, s: 0.62, eyes: 'happy', mouth: 'smile', hat: 'party', hatColor: '#9fe0c8' })
-      + A.cake(196, 572) + A.confetti(22, c.months),
+    text: c => `Сегодня 19-е: ${months(c.months)} как вы живёте вместе. Шкет, Маня и ${P()} испекли торт. Свечку задуваешь ты.`,
+    note: c => `${cap(c.cheeky)}, ${months(c.months)} вместе. Спасибо, что ты у меня есть. Люблю тебя.`,
+    setup: (W, c) => {
+      W.P.banner(`${months(c.months)}!`);
+      W.pose('manya', { eyes: 'happy', arms: ['down', 'wave'], hat: 'party' });
+      W.pose('shket', { x: -0.35, z: 0.5, eyes: 'happy', hat: 'party', hatColor: '#9fe0c8' });
+      W.pose('peng', { eyes: 'happy', hat: 'party', hatColor: '#ffd36b' });
+      W.P.cake(0.5, 0.62); W.P.confetti(40);
+    },
   },
   {
     id: 'anniversary', title: 'Годовщина', rarity: 'special', hint: 'откроется 19 июля',
     when: c => c.now.getDate() === CONFIG.since[2] && c.now.getMonth() === CONFIG.since[1] && c.years >= 1,
-    text: c => `${c.years} ${plural(c.years, ['год', 'года', 'лет'])} вместе! Все надели колпаки, ${P()} даже простил тебе ноги. Ждут только тебя.`,
-    note: c => `${c.years} ${plural(c.years, ['год', 'года', 'лет'])} с тобой — лучшее, что со мной было. Моя ${c.cheeky}, люблю тебя.`,
-    draw: c => A.banner(`${c.years} ${plural(c.years, ['год', 'года', 'лет'])} вместе!`, 286, '#c7a4f0')
-      + Pg(c, { x: 340, y: 516, s: 0.6, eyes: 'happy', hat: 'party', hatColor: '#ffd36b', flippers: [16, 120] })
-      + M(c, { x: 92, y: 508, s: 0.7, eyes: 'happy', arms: [150, 150], hat: 'party' })
-      + party(c) + A.cake(170, 572, '') + A.confetti(40, 7),
+    text: c => `${years(c.years)} вместе! Все надели колпаки, ${P()} даже простил тебе ноги. Ждут только тебя.`,
+    note: c => `${years(c.years)} с тобой — лучшее, что со мной было. Моя ${c.cheeky}, люблю тебя.`,
+    setup: (W, c) => {
+      W.P.banner(`${years(c.years)} вместе!`, '#c7a4f0');
+      W.pose('manya', { eyes: 'happy', arms: ['up', 'up'], hat: 'party' });
+      W.pose('shket', { x: -0.35, z: 0.5, eyes: 'happy', hat: 'party', hatColor: '#9fe0c8' });
+      W.pose('peng', { eyes: 'happy', flips: ['down', 'wave'], hat: 'party', hatColor: '#ffd36b' });
+      W.P.cake(0.5, 0.62); W.P.confetti(70);
+    },
   },
   {
     id: 'newyear', title: 'Новый год', rarity: 'special', hint: 'откроется под Новый год',
     when: c => (c.now.getMonth() === 11 && c.now.getDate() >= 25) || (c.now.getMonth() === 0 && c.now.getDate() <= 7),
-    roomOpt: () => ({ snow: true }),
     text: c => `Нарядили ёлку. Шкет хотел быть звездой на макушке, Маня уговорила его быть просто шариком. ${P()} счастлив: наконец-то нормальная погода.`,
     note: c => `С Новым годом, ${c.nick}! Пусть он будет тёплым, как Маня, и сладким, как мандаринки Шкета.`,
-    draw: c => A.tree(72, 530)
-      + Pg(c, { x: 334, y: 516, s: 0.62, eyes: 'happy', hat: 'santa' })
-      + M(c, { x: 226, y: 508, s: 0.7, eyes: 'happy', arms: [14, 150], hat: 'santa' })
-      + K(c, { x: 150, y: 540, s: 0.62, eyes: 'happy', mouth: 'smile', hat: 'santa' }),
+    setup: W => {
+      W.sky({ snow: true });
+      W.P.tree(-1.75, -0.55);
+      W.pose('manya', { x: -0.65, eyes: 'happy', arms: ['down', 'wave'], hat: 'santa' });
+      W.pose('shket', { x: 0.15, eyes: 'happy', hat: 'santa' });
+      W.pose('peng', { eyes: 'happy', hat: 'santa' });
+    },
   },
   {
     id: 'feb14', title: '14 февраля', rarity: 'special', hint: 'откроется 14 февраля',
     when: c => c.now.getMonth() === 1 && c.now.getDate() === 14,
     text: c => `День всех влюблённых. Шкет надул сердечко, Маня покраснела, ${P()} сказал «фу», но в открытке подписался первым.`,
     note: c => `Ты моя валентинка, ${c.cheeky}.`,
-    draw: c => A.balloon(220, 330, 196, 470)
-      + Pg(c, { x: 340, y: 516, s: 0.6, eyes: 'grumpy' })
-      + M(c, { x: 100, y: 508, s: 0.72, eyes: 'happy', arms: [-30, -30] })
-      + K(c, { x: 196, y: 524, s: 0.78, eyes: 'happy', mouth: 'smile' })
-      + hearts([[120, 320], [300, 330], [60, 380]]),
+    setup: W => {
+      W.P.balloon(0.15, 2.05, 0.35, 0.05, W.TOP + 0.62, 0.5);
+      W.pose('manya', { eyes: 'happy', arms: ['hug', 'hug'] });
+      W.pose('shket', { eyes: 'happy', ry: -1.5 });
+      W.pose('peng', { eyes: 'grumpy' });
+      W.P.hearts([[-1.2, 2.0, 0], [1.0, 2.4, -0.2], [-0.4, 2.5, -0.3]]);
+    },
   },
   {
     id: 'mar8', title: '8 Марта', rarity: 'special', hint: 'откроется 8 марта',
     when: c => c.now.getMonth() === 2 && c.now.getDate() === 8,
     text: c => `Нарвали тебе цветов. Где — не говорят. ${P()} настаивает, что жёлтый выбирал он.`,
     note: c => `С 8 Марта, ${c.nick}! Ты у меня самая-самая.`,
-    draw: c => Pg(c, { x: 340, y: 516, s: 0.6, eyes: 'happy' })
-      + M(c, { x: 96, y: 508, s: 0.72, eyes: 'happy', arms: [14, 14] })
-      + K(c, { x: 270, y: 530, s: 0.66, eyes: 'happy', mouth: 'smile', flip: true })
-      + A.bouquet(196, 576, CONFIG.name),
+    setup: W => {
+      W.P.bouquet(0.25, 0.6, CONFIG.name);
+      W.pose('manya', { eyes: 'happy', arms: ['down', 'out'] });
+      W.pose('shket', { x: -0.45, z: 0.5, eyes: 'happy' });
+      W.pose('peng', { eyes: 'happy' });
+    },
   },
 ];
 
-/* ---------- реплики ---------- */
-/* {nick} / {Nick} — прозвище, выбирается заново на каждую реплику */
+/* ---------- прятки: где может сидеть Шкет ---------- */
+const HIDE_SPOTS = [
+  { where: 'на подушке за Маней', shket: { x: -0.55, z: -1.05, y: 0.5, ry: -1.2, s: 0.55 } },
+  { where: 'на подоконнике', shket: { x: 0.93, z: -1.45, y: 1.54, ry: -1.0, s: 0.3 } },
+  { where: 'за одеялом', shket: { x: 0.9, z: 0.82, ry: -1.57, s: 0.55 } },
+  { where: 'за Пингвином', shket: { x: 1.25, z: -0.8, ry: -1.2, s: 0.62 } },
+  { where: 'на полке', shket: { x: -1.72, z: -1.42, y: 2.08, ry: -1.57, s: 0.28 } },
+  { where: 'за Маней', shket: { x: -1.25, z: -0.7, ry: -1.3, s: 0.6 } },
+];
+function hideSetup(spot) {
+  return W => {
+    W.pose('manya', { eyes: 'open' });
+    W.pose('peng', { eyes: 'happy' });
+    W.pose('shket', Object.assign({ eyes: 'happy' }, HIDE_SPOTS[spot].shket));
+  };
+}
+/* ---------- уложить спать ---------- */
+function sleepSetup(W) {
+  W.sky({ tod: 'night' });
+  W.pose('manya', { x: -0.9, z: -0.5, ry: 0.2, eyes: 'closed', arms: ['hug', 'hug'], anim: 'sleep' });
+  W.pose('peng', { x: 1.0, z: -0.5, ry: -0.2, eyes: 'closed', anim: 'sleep' });
+  W.P.blanket();
+  W.pose('shket', { x: 0.05, z: 0.3, y: W.TOP + 0.62, ry: -1.57, s: 0.7, eyes: 'closed', anim: 'sleep' });
+  W.P.zzz(-0.75, 1.65, -0.4); W.P.zzz(1.15, 2.05, -0.4); W.P.zzz(0.2, 1.35, 0.3);
+}
+
+/* ---------- реплики: {nick} / {Nick} — прозвище, выбирается заново на каждую реплику ---------- */
 const TALK = {
   shket: ['Я не толстый, я плюшевый.', '{Nick}, ты пришла!', 'Я тебя ждал. Маня тоже, но меньше.', 'Мандаринку бы…', 'Можно я сегодня сплю в серединке?', 'Я храбрый. Я с тобой на капельницу ходил.', 'Погладь за ушком. Нет, за другим.',
     '{Nick} вернулась!', '{Nick}, почеши пузико. Ну пожалуйста.', 'Я без тебя мандарины считал. Их стало меньше.', 'Лучше тебя никого нет, {nick}.', '{Nick}, а ты меня сегодня возьмёшь с собой?'],
@@ -297,11 +375,8 @@ const PET = {
 };
 const HELLO = ['Привет, {nick}!', '{Nick} пришла!', 'Ура, {nick}!', 'О, {nick}! Мы тут как раз…'];
 const FOODS = [
-  { id: 'tangerine', name: 'Мандаринка', icon: () => A.tangerine(0, 2, 14) },
-  { id: 'clover', name: 'Клевер', icon: () => A.clover(0, -8, 1) },
-  { id: 'fish', name: 'Рыбка', icon: () => A.fish(0, 0, 1.05, -12) },
-  { id: 'cookie', name: 'Печенька', icon: () => A.cookie(0, 0, 15) },
-  { id: 'watermelon', name: 'Арбуз', icon: () => A.watermelon(0, 6, 1.3) },
+  { id: 'tangerine', name: 'Мандаринка' }, { id: 'clover', name: 'Клевер' }, { id: 'fish', name: 'Рыбка' },
+  { id: 'cookie', name: 'Печенька' }, { id: 'watermelon', name: 'Арбуз' },
 ];
 const LIKES = {
   shket: { tangerine: 2, watermelon: 2, cookie: 1, clover: 1, fish: 0 },
@@ -313,10 +388,31 @@ const FEED = {
   manya: { 2: ['Бе-е-е! Вкуснятина!', 'Ты меня знаешь, {nick}.', 'Самая вкусная еда — из твоих рук.'], 1: ['Спасибо, {nick}! Бе.', 'Вкусно. А обнимашку можно?'], 0: ['Маня вежливо отказалась.', 'Это к Шкету. Или к Пингвину.'] },
   peng: { 2: ['РЫБКА! Наконец-то меня кормят.', 'Вот. Вот это уважение.', 'Рыбка! Прощаю тебе ноги. Почти.'], 1: ['Ну… спасибо. Рыбка была бы лучше.', 'Съел. Но я всё ещё не подставка.'], 0: ['Пингвины такое не едят. Запомни, {nick}.'] },
 };
+const WEAR = [
+  { id: 'party', name: 'Колпак', kind: 'hat' }, { id: 'beanie', name: 'Шапка', kind: 'hat' }, { id: 'crown', name: 'Корона', kind: 'hat' },
+  { id: 'santa', name: 'Колпак Деда Мороза', short: 'Дед Мороз', kind: 'hat' }, { id: 'bow', name: 'Бантик', kind: 'bow' }, { id: 'glasses', name: 'Очки', kind: 'glasses' },
+  { id: 'none', name: 'Снять всё', short: 'Снять', kind: 'none' },
+];
+const WEAR_LINES = {
+  shket: ['Я теперь важная капибара.', 'Сфоткай меня, {nick}!', 'Это мне? Ого.', 'Мне идёт? Скажи, что идёт.'],
+  manya: ['Мне идёт? Бе-е!', 'Теперь я модная овечка.', 'Спасибо, {nick}! Покручусь перед зеркалом.'],
+  peng: ['Наконец-то стиль.', 'Ладно, это я ношу.', 'Пингвин в образе. Не трогать.'],
+};
+const UNDRESS = { shket: 'Ну вот, был красивый…', manya: 'Бе. Без шапочки холодно.', peng: 'Верни. Мне шло.' };
+const HIDE = {
+  start: ['Шкет спрятался! Найдёшь?', 'Раз, два, три… Шкет спрятался!'],
+  hot: ['Горячо!', 'Ой, совсем рядом!', 'Ещё чуть-чуть!'],
+  warm: ['Тепло…', 'Уже теплее!'],
+  cold: ['Холодно.', 'Мимо. Совсем холодно.', 'Не там, {nick}.'],
+  found: ['Нашла! Как ты догадалась?', 'Ну вот, нашла. Я же так хорошо спрятался!', 'Нашла! Теперь ты водишь. Шучу.'],
+};
+const SLEEPY = ['Ещё пять минуточек…', 'Мне снилась ты, {nick}…', 'Zzz… рыбка…', 'Тсс… все спят.', 'Не буди, мне снится мандарин.'];
+const WAKE = ['Доброе утро, {nick}!', 'Уже утро? Ура, {nick}!', 'Выспались! Спасибо, {nick}.'];
 
 window.SCENES_API = {
   CONFIG, SCENES, byId: Object.fromEntries(SCENES.map(s => [s.id, s])),
-  TALK, HUNGRY, PET, HELLO, FOODS, LIKES, FEED,
+  HIDE_SPOTS, hideSetup, sleepSetup,
+  TALK, HUNGRY, PET, HELLO, FOODS, LIKES, FEED, WEAR, WEAR_LINES, UNDRESS, HIDE, SLEEPY, WAKE,
   plural, cap, pick, makeCtx, daysTogether, monthsTogether,
 };
 })();

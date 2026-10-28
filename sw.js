@@ -1,7 +1,8 @@
 // Офлайн: свои файлы — сначала из сети (чтобы обновления приходили сразу), без сети — из кэша.
-// Шрифты Google — из кэша, если уже скачаны.
-const CACHE = 'shket-manya-v2';
-const SHELL = ['./', 'index.html', 'app.css', 'art.js', 'scenes.js', 'app.js', 'manifest.webmanifest', 'icons/icon-180.png', 'icons/icon-192.png', 'icons/icon-512.png'];
+// three.js и шрифты Google — из кэша, если уже скачаны.
+const CACHE = 'shket-manya-v3';
+const SHELL = ['./', 'index.html', 'app.css', 'world.js', 'scenes.js', 'app.js', 'manifest.webmanifest', 'icons/icon-180.png', 'icons/icon-192.png', 'icons/icon-512.png'];
+const CDN = ['cdnjs.cloudflare.com', 'fonts.googleapis.com', 'fonts.gstatic.com'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
@@ -20,7 +21,7 @@ self.addEventListener('fetch', e => {
         return res;
       }).catch(() => caches.match(req).then(r => r || caches.match('index.html')))
     );
-  } else if (url.hostname === 'fonts.googleapis.com' || url.hostname === 'fonts.gstatic.com') {
+  } else if (CDN.includes(url.hostname)) {
     e.respondWith(
       caches.match(req).then(r => r || fetch(req).then(res => { const copy = res.clone(); caches.open(CACHE).then(c => c.put(req, copy)); return res; }))
     );
