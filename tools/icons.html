@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8"><title>Иконки</title>
+<style>body{margin:0;padding:12px;background:#ccc;font:14px system-ui}svg{width:256px;height:256px;border-radius:56px;display:block}#log{margin-top:8px}</style>
+</head><body>
+<div id="out"></div><p id="log">Рисую…</p>
+<script src="../art.js"></script>
+<script>
+// Генератор иконок: рисует SVG и сохраняет PNG через локальный сервер (PUT /__save). Открывать с ?save=1.
+const A = ART, uid = 'i';
+const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="58 300 300 300" width="512" height="512">${A.defs(uid, 'day')}
+<rect x="0" y="0" width="400" height="700" fill="url(#wp-${uid})"/>
+<circle cx="208" cy="430" r="150" fill="#fff6ef" opacity=".55"/>
+${A.penguin({ uid, x: 300, y: 610, s: 0.95, eyes: 'happy' })}
+${A.manya({ uid, x: 160, y: 640, s: 1.18, eyes: 'happy' })}
+${A.capy({ uid, x: 222, y: 618, s: 1.05, eyes: 'happy', mouth: 'smile' })}
+</svg>`;
+document.getElementById('out').innerHTML = svg;
+async function save(size, name) {
+  const img = new Image();
+  img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+  await img.decode();
+  const c = document.createElement('canvas');
+  c.width = c.height = size;
+  const g = c.getContext('2d');
+  g.fillStyle = '#ebcbc5';
+  g.fillRect(0, 0, size, size);
+  g.drawImage(img, 0, 0, size, size);
+  const blob = await new Promise(r => c.toBlob(r, 'image/png'));
+  const res = await fetch('/__save?name=' + encodeURIComponent(name), { method: 'PUT', body: blob });
+  return name + ': ' + res.status;
+}
+if (new URLSearchParams(location.search).has('save')) {
+  Promise.all([save(180, 'icons/icon-180.png'), save(192, 'icons/icon-192.png'), save(512, 'icons/icon-512.png')])
+    .then(r => { document.getElementById('log').textContent = r.join(' · '); });
+} else document.getElementById('log').textContent = 'Предпросмотр. Сохранить: ?save=1';
+</script>
+</body></html>

@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Шкет и Маня</title>
+<meta name="description" content="Шкет, Маня и Пингвин живут здесь и всегда чем-нибудь заняты.">
+<meta name="theme-color" content="#efe2d9">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Шкет и Маня">
+<link rel="apple-touch-icon" href="icons/icon-180.png">
+<link rel="icon" type="image/png" href="icons/icon-192.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;600&family=Pangolin&display=swap">
+<link rel="stylesheet" href="app.css">
+</head>
+<body data-tod="day">
+<div class="app">
+  <header class="top">
+    <div class="brand">
+      <h1>Шкет и Маня</h1>
+      <p class="together" id="together"></p>
+    </div>
+    <button class="icon-btn" id="btnAlbum" type="button" aria-label="Альбом открыток">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="4" width="17" height="16" rx="2.5"/><path d="M3.5 15l4.5-4 4 3.5 3-2.5 5 4"/><circle cx="15.5" cy="8.5" r="1.6"/></svg>
+      <span class="badge" id="albumBadge" hidden></span>
+    </button>
+  </header>
+
+  <main class="stage" id="stage"></main>
+
+  <section class="caption" aria-live="polite">
+    <p class="away" id="away"></p>
+    <p class="story" id="story"></p>
+    <p class="newcard" id="newcard" hidden>Новая открытка в альбоме!</p>
+    <div class="note" id="note" hidden><p id="noteText"></p><p class="sign" id="noteSign"></p></div>
+  </section>
+
+  <nav class="bar">
+    <button class="pill" id="btnFeed" type="button">Покормить</button>
+    <p class="hint">Тапни героя — он что-нибудь скажет. Погладь пальцем — растает.</p>
+  </nav>
+</div>
+
+<div class="tray" id="tray" hidden>
+  <div class="tray-head">
+    <p id="trayHint">Перетащи вкусняшку на Шкета, Маню или Пингвина</p>
+    <button class="ghost-btn" id="trayClose" type="button">Готово</button>
+  </div>
+  <div class="foods" id="foods"></div>
+</div>
+
+<div class="sheet" id="album" hidden>
+  <div class="sheet-inner">
+    <div class="sheet-head">
+      <div style="flex:1;min-width:0">
+        <h2 id="albumTitle">Альбом</h2>
+        <p id="albumCount"></p>
+      </div>
+      <button class="ghost-btn" id="albumClose" type="button">Закрыть</button>
+    </div>
+    <div id="albumBody"></div>
+  </div>
+</div>
+
+<div class="install" id="install" hidden>
+  <h2>Поставь нас на экран «Домой»</h2>
+  <ol>
+    <li>Внизу Safari нажми «Поделиться» — квадрат со стрелкой вверх.</li>
+    <li>Выбери «На экран „Домой“».</li>
+    <li>Открывай нас с иконки: так мы будем как приложение, и альбом не потеряется.</li>
+  </ol>
+  <button class="ghost-btn" id="installOk" type="button">Понятно</button>
+</div>
+
+<div class="fx" id="fx"></div>
+
+<script src="art.js"></script>
+<script src="scenes.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

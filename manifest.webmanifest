@@ -1,0 +1,17 @@
+{
+  "name": "Шкет и Маня",
+  "short_name": "Шкет и Маня",
+  "description": "Шкет, Маня и Пингвин живут здесь и всегда чем-нибудь заняты.",
+  "lang": "ru",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#efe2d9",
+  "theme_color": "#efe2d9",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
