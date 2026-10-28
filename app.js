@@ -16,7 +16,10 @@ if (q.has('reset')) try { localStorage.removeItem(KEY); } catch (e) { /* нет 
 /* ---------- состояние ---------- */
 function load() { try { return JSON.parse(localStorage.getItem(KEY)); } catch (e) { return null; } }
 function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { /* приватный режим */ } }
-const state = Object.assign({ first: Date.now(), last: 0, visits: 0, seen: {}, cur: null, fed: {}, fresh: [], specialDay: '', install: false, outfit: {}, hideBest: 0, cooked: {} }, load() || {});
+const state = Object.assign({
+  first: Date.now(), last: 0, visits: 0, seen: {}, cur: null, fed: {}, fresh: [], specialDay: '', install: false,
+  outfit: {}, hideBest: 0, cooked: {}, plants: [0, 0, 0], plantDay: '', unlocked: [], boxDay: '', clean: {}, photos: 0,
+}, load() || {});
 
 function now() {
   if (q.get('date')) {
@@ -68,7 +71,7 @@ try {
 WD.setOutfit(state.outfit);
 
 /* ---------- режимы: сцена дня (спальня), просто комната, прятки, сон, готовка ---------- */
-let room = 'bedroom', mode = 'scene', game = null, cook = null;
+let room = 'bedroom', mode = 'scene', game = null, cook = null, bath = null, popped = 0;
 function ctxNow(extra) {
   const d = now();
   return S.makeCtx(Object.assign({ tod: todOf(d), now: d, seed: state.cur ? state.cur.seed : Math.random() }, extra));
@@ -105,6 +108,7 @@ function restage() {
   else if (mode === 'sleep') WD.stage(S.sleepSetup, ctxNow({}), 'bedroom');
   else if (mode === 'scene') { const sc = S.byId[state.cur.id] || S.byId.cuddle; WD.stage(sc.setup, ctxNow({ variant: state.cur.variant, away: state.cur.away }), 'bedroom'); }
   else if (room === 'kitchen') (cook && cook.look ? S.KITCHEN_LOOK[cook.look] : S.LAYOUT.kitchen)(WD);
+  else if (mode === 'bath' && bath && bath.id) S.bathSetup(bath.id)(WD);
   else S.LAYOUT[room](WD);
 }
 
@@ -118,10 +122,11 @@ function enterRoom(id) {
   $('curtainName').textContent = r.name;
   curtain.classList.add('on');
   setTimeout(() => {
-    room = id; mode = 'idle'; game = null; cook = null;
+    room = id; mode = 'idle'; game = null; cook = null; bath = null;
     const ctx = ctxNow({});
     setChrome(ctx.tod);
     WD.stage(S.LAYOUT[id], ctx, id);
+    if (id === 'balcony') WD.room.plants(state.plants);
     setCaption(r.name, r.text);
     renderBar();
     WD.walkIn(() => {
@@ -160,13 +165,26 @@ const TOOLS = {
   sleep: { label: 'Спать', alt: 'Разбудить', icon: '<path d="M6 -16A14 14 0 1 0 14 8A11 11 0 0 1 6 -16Z" fill="#ffd36b" stroke="#c9a03d" stroke-width="2" stroke-linejoin="round"/>' },
   cook: { label: 'Готовить', alt: 'Хватит', icon: '<path d="M-16 -2H12V4A10 10 0 0 1 2 14H-6A10 10 0 0 1 -16 4Z" fill="#e5484d" stroke="#a6343a" stroke-width="2"/><path d="M12 0H20" stroke="#6b4524" stroke-width="4" stroke-linecap="round"/><path d="M-8 -8q-3 -4 0 -8M0 -8q-3 -4 0 -8" stroke="#c9b8a6" stroke-width="2" fill="none" stroke-linecap="round"/>' },
 };
-const ROOM_TOOLS = { bedroom: ['feed', 'wear', 'hide', 'sleep'], kitchen: ['cook', 'feed', 'wear'] };
+Object.assign(TOOLS, {
+  bathe: { label: 'Купать', alt: 'Хватит', icon: '<rect x="-9" y="-4" width="18" height="12" rx="4" fill="#ffd36b" stroke="#c9a03d" stroke-width="2"/><g fill="#fff" stroke="#9fd6e8" stroke-width="1.6"><circle cx="-8" cy="-10" r="5"/><circle cx="3" cy="-13" r="4"/><circle cx="11" cy="-7" r="3.5"/></g>' },
+  duck: { label: 'Уточка', icon: '<ellipse cx="-2" cy="6" rx="15" ry="9" fill="#ffd84a" stroke="#c9a03d" stroke-width="2"/><circle cx="7" cy="-7" r="8" fill="#ffd84a" stroke="#c9a03d" stroke-width="2"/><path d="M14 -6L21 -4L14 -2Z" fill="#f08a3c"/><circle cx="9" cy="-9" r="1.6" fill="#222"/>' },
+  water: { label: 'Полить', icon: '<path d="M-14 -4H8V14H-14Z" fill="#7fb6e6" stroke="#4f86a8" stroke-width="2" stroke-linejoin="round"/><path d="M8 0L20 -10" stroke="#4f86a8" stroke-width="4" stroke-linecap="round"/><path d="M-10 -4Q-4 -16 4 -4" fill="none" stroke="#4f86a8" stroke-width="2.6"/><g fill="#7fc4ec"><circle cx="21" cy="-4" r="2"/><circle cx="23" cy="2" r="2"/></g>' },
+  bubbles: { label: 'Пузыри', icon: '<g fill="#e7f4ff" stroke="#7fb6e6" stroke-width="2"><circle cx="-6" cy="4" r="10"/><circle cx="9" cy="-8" r="6"/><circle cx="11" cy="9" r="4"/></g><ellipse cx="-10" cy="0" rx="3" ry="2" fill="#fff"/>' },
+  pigeon: { label: 'Голубь', icon: '<ellipse cx="-2" cy="4" rx="13" ry="9" fill="#9aa3b0" stroke="#6b7480" stroke-width="2"/><circle cx="9" cy="-7" r="7" fill="#9aa3b0" stroke="#6b7480" stroke-width="2"/><path d="M15 -7L21 -5L15 -3Z" fill="#d9a65a"/><circle cx="11" cy="-8" r="1.5" fill="#222"/>' },
+  photo: { label: 'Фото', icon: '<rect x="-17" y="-9" width="34" height="24" rx="5" fill="#5a7fb5" stroke="#3f5f8a" stroke-width="2"/><rect x="-7" y="-14" width="14" height="6" rx="2" fill="#5a7fb5"/><circle cx="0" cy="3" r="8" fill="#e7f4ff" stroke="#3f5f8a" stroke-width="2"/><circle cx="12" cy="-4" r="2" fill="#ffd36b"/>' },
+  hug: { label: 'Обнять', icon: '<path d="M0 14c-12-8-19-14-19-21 0-6 4.5-10 9.5-10 4 0 7 2.3 9.5 5.5 2.5-3.2 5.5-5.5 9.5-5.5 5 0 9.5 4 9.5 10 0 7-7 13-19 21z" fill="#ef6f78" stroke="#c94a58" stroke-width="2"/>' },
+  box: { label: 'Сундук', icon: '<rect x="-16" y="-2" width="32" height="18" rx="2" fill="#b9773f" stroke="#7a4f2a" stroke-width="2"/><path d="M-16 -2Q0 -18 16 -2Z" fill="#c98a50" stroke="#7a4f2a" stroke-width="2"/><rect x="-3" y="-4" width="6" height="8" rx="1.5" fill="#e9b949"/>' },
+});
+const ROOM_TOOLS = {
+  bedroom: ['feed', 'wear', 'hide', 'sleep'], kitchen: ['cook', 'feed', 'wear'], bath: ['bathe', 'duck', 'wear'],
+  balcony: ['water', 'bubbles', 'pigeon', 'wear'], hall: ['photo', 'hug', 'wear'], pantry: ['box', 'feed', 'wear'],
+};
 function renderBar() {
   const list = ROOM_TOOLS[room] || ROOM_TOOLS.bedroom;
   const bar = $('bar');
   bar.style.gridTemplateColumns = `repeat(${list.length}, minmax(0, 1fr))`;
   bar.innerHTML = list.map(id => {
-    const t = TOOLS[id], active = (id === 'hide' && mode === 'hide') || (id === 'sleep' && mode === 'sleep') || (id === 'cook' && mode === 'cook');
+    const t = TOOLS[id], active = (id === 'hide' && mode === 'hide') || (id === 'sleep' && mode === 'sleep') || (id === 'cook' && mode === 'cook') || (id === 'bathe' && mode === 'bath');
     return `<button class="tool" type="button" data-tool="${id}"><svg viewBox="-24 -24 48 48" aria-hidden="true">${t.icon}</svg><span>${active && t.alt ? t.alt : t.label}</span></button>`;
   }).join('');
 }
@@ -179,6 +197,14 @@ $('bar').addEventListener('click', e => {
   else if (id === 'hide') { if (mode === 'hide') show(false); else startHide(); }
   else if (id === 'sleep') toggleSleep();
   else if (id === 'cook') { if (mode === 'cook') endCook(); else startCook(); }
+  else if (id === 'bathe') { if (mode === 'bath') endRoomMode(); else startBath(); }
+  else if (id === 'duck') addDuck();
+  else if (id === 'water') waterPlants();
+  else if (id === 'bubbles') startBubbles();
+  else if (id === 'pigeon') callPigeon();
+  else if (id === 'photo') takePhoto();
+  else if (id === 'hug') groupHug();
+  else if (id === 'box') openChest();
 });
 
 /* ---------- какая сцена выпадет ---------- */
@@ -292,7 +318,11 @@ stage.addEventListener('pointermove', e => {
   touch.x = e.clientX; touch.y = e.clientY;
   if (touch.stir) { stirBy(step); return; }
   if (!touch.id) { if (touch.dist > 6) WD.orbit(dx); return; }
-  if (touch.dist - touch.lastHeart > 34) { heartAt(e.clientX, e.clientY - 10); touch.lastHeart = touch.dist; }
+  if (touch.dist - touch.lastHeart > 34) {
+    touch.lastHeart = touch.dist;
+    if (mode === 'bath' && bath && bath.step === 'scrub' && touch.id === bath.id) { scrub(1); return; }
+    heartAt(e.clientX, e.clientY - 10);
+  }
   if (!touch.done && touch.dist > 260) {
     touch.done = true;
     WD.react(touch.id, 'squish');
@@ -307,9 +337,11 @@ function endTouch(e) {
   WD.setDragging(false);
   if (tp.stir) { WD.cook.stir(false); return; }
   if (tp.dist >= 10) return;
+  if (mode === 'bubbles') { if (WD.room.pop(e.clientX, e.clientY)) popOne(); return; }
   if (picked && picked.tray === 'ing') return addIngredient(picked.id);
   if (tp.id) {
     if (mode === 'hide') return hideTapHero(tp.id);
+    if (mode === 'bath' && bath && bath.step === 'pick') return bathPick(tp.id);
     if (picked && (picked.tray === 'food' || picked.tray === 'wear')) return use(tp.id, picked);
     return talk(tp.id);
   }
@@ -332,6 +364,10 @@ const ICON = {
   bow: '<path d="M0 0L-16 -10V10Z M0 0L16 -10V10Z" fill="#f28aa0" stroke="#c96f78" stroke-width="2" stroke-linejoin="round"/><circle r="4.5" fill="#f28aa0" stroke="#c96f78" stroke-width="2"/>',
   glasses: '<g fill="#e7f4ff" stroke="#2b2b33" stroke-width="2.6"><circle cx="-9" cy="0" r="7.5"/><circle cx="9" cy="0" r="7.5"/></g><path d="M-1.5 -1H1.5" stroke="#2b2b33" stroke-width="2.6"/>',
   none: '<path d="M-11 -11L11 11M11 -11L-11 11" stroke="#b08a7a" stroke-width="3.5" stroke-linecap="round"/>',
+  chef: '<rect x="-10" y="2" width="20" height="12" rx="2" fill="#fff" stroke="#c9bfb6" stroke-width="2"/><g fill="#fff" stroke="#c9bfb6" stroke-width="2"><circle cx="-8" cy="-2" r="7"/><circle cx="8" cy="-2" r="7"/><circle cx="0" cy="-8" r="9"/></g>',
+  flowers: '<ellipse cx="0" cy="4" rx="17" ry="7" fill="none" stroke="#6fae4f" stroke-width="3"/><g><circle cx="-14" cy="3" r="4.5" fill="#f28aa0"/><circle cx="-6" cy="-2" r="4.5" fill="#ffd36b"/><circle cx="4" cy="-2" r="4.5" fill="#c7a4f0"/><circle cx="13" cy="3" r="4.5" fill="#f7a23b"/><circle cx="0" cy="10" r="4.5" fill="#9fc1e6"/></g>',
+  bunny: '<path d="M-14 12Q0 2 14 12" fill="none" stroke="#f28aa0" stroke-width="3"/><g fill="#fff" stroke="#d8cfc6" stroke-width="2"><ellipse cx="-6" cy="-6" rx="5" ry="13" transform="rotate(-12 -6 -6)"/><ellipse cx="6" cy="-6" rx="5" ry="13" transform="rotate(12 6 -6)"/></g><g fill="#f6b8c4"><ellipse cx="-6" cy="-6" rx="2.2" ry="9" transform="rotate(-12 -6 -6)"/><ellipse cx="6" cy="-6" rx="2.2" ry="9" transform="rotate(12 6 -6)"/></g>',
+  cap: '<path d="M-14 6A14 14 0 0 1 14 6Z" fill="#e5484d" stroke="#a6343a" stroke-width="2"/><path d="M6 6H22Q22 11 6 10Z" fill="#e5484d" stroke="#a6343a" stroke-width="2"/><circle cx="0" cy="-8" r="2.5" fill="#fff"/>',
   flour: '<path d="M-12 16V-6Q-12 -14 0 -16Q12 -14 12 -6V16Z" fill="#f6f1e6" stroke="#c9b8a6" stroke-width="2"/><text x="0" y="6" text-anchor="middle" font-size="7" font-weight="700" fill="#b5545a">МУКА</text>',
   milk: '<path d="M-10 16V-6L-6 -14H6L10 -6V16Z" fill="#fff" stroke="#7fb6e6" stroke-width="2" stroke-linejoin="round"/><path d="M-10 -6H10" stroke="#7fb6e6" stroke-width="2"/><rect x="-10" y="2" width="20" height="6" fill="#7fb6e6"/>',
   egg: '<ellipse cx="0" cy="2" rx="11" ry="14" fill="#fbf1dc" stroke="#d8c3a0" stroke-width="2"/>',
@@ -352,7 +388,7 @@ const HINT = {
 };
 function trayList(kind) {
   if (kind === 'food') return S.FOODS;
-  if (kind === 'wear') return S.WEAR;
+  if (kind === 'wear') return wearList();
   if (kind === 'recipe') return S.RECIPES;
   // продукты: нужные для рецепта и парочка лишних — чтобы было из чего выбирать
   const need = cook.recipe.need, extra = Object.keys(S.INGREDIENTS).filter(i => !need.includes(i)).sort(() => Math.random() - 0.5).slice(0, 2);
@@ -433,8 +469,13 @@ function feed(id, food) {
     save();
   }
 }
+/* гардероб: базовые вещи + то, что выпало из сундука в кладовой */
+function wearList() {
+  const extra = S.UNLOCKS.filter(u => state.unlocked.includes(u.id));
+  return S.WEAR.filter(w => w.id !== 'none').concat(extra, S.WEAR.filter(w => w.id === 'none'));
+}
 function wear(id, item) {
-  const def = S.WEAR.find(w => w.id === item);
+  const def = wearList().find(w => w.id === item);
   const fit = Object.assign({}, state.outfit[id]);
   let on = true;
   if (def.kind === 'none') { delete state.outfit[id]; on = false; }
@@ -545,6 +586,174 @@ function endCook() {
   renderBar();
 }
 
+/* ---------- ванная, балкон, коридор, кладовая ---------- */
+const NAME = { manya: 'Маню', shket: 'Шкета', peng: 'Пингвина' };
+const L = S.ROOM_LINES;
+const today = () => dayKey(now());
+function roomCaption() { const r = S.ROOMS.find(x => x.id === room); setCaption(r.name, r.text); }
+function endRoomMode() {
+  closeTray();
+  mode = 'idle'; bath = null;
+  WD.stage(S.LAYOUT[room], ctxNow({}), room);
+  if (room === 'balcony') WD.room.plants(state.plants);
+  roomCaption();
+  renderBar();
+}
+/* купание: выбрать героя → намылить (водить пальцем) → смыть → вытереть */
+function startBath() {
+  closeTray();
+  mode = 'bath'; bath = { step: 'pick', id: null, foam: 0, ducks: 0 };
+  setCaption('Купаемся', 'Кого купаем? Тапни героя.', { buttons: [['endroom', 'Хватит']] });
+  renderBar();
+}
+function bathPick(id) {
+  bath.id = id; bath.step = 'scrub'; bath.foam = 0;
+  WD.stage(S.bathSetup(id), ctxNow({}), 'bath');
+  say(id, L.bath.into[id]);
+  setCaption('Купаемся', `Намыль ${NAME[id]}: води пальцем по герою или жми «Мылить».`, { buttons: [['soap', 'Мылить'], ['endroom', 'Хватит']] });
+}
+function scrub(n) {
+  if (!bath || bath.step !== 'scrub') return;
+  WD.room.foam(bath.id, n * 2);
+  bath.foam += n * 2;
+  if (Math.random() < 0.3) say(bath.id, S.pick(L.bath.scrub));
+  if (bath.foam >= 16) {
+    bath.step = 'rinse';
+    setCaption('Купаемся', 'Сплошная пена! Теперь смоем.', { buttons: [['rinse', 'Смыть'], ['endroom', 'Хватит']] });
+  }
+}
+function rinse() {
+  bath.step = 'dry';
+  WD.room.rinse();
+  say(bath.id, S.pick(L.bath.rinse));
+  setTimeout(() => { if (bath && bath.step === 'dry') setCaption('Купаемся', 'Чистота! Осталось вытереть полотенцем.', { buttons: [['dry', 'Вытереть'], ['endroom', 'Хватит']] }); }, 1300);
+}
+function dryOff() {
+  const id = bath.id;
+  WD.react(id, 'hop'); burst(id, 6);
+  say(id, L.bath.dry[id]);
+  state.clean[id] = Date.now(); save();
+  bath.step = 'done';
+  const done = { manya: 'Маня чистая и пушистая', shket: 'Шкет чистый и пушистый', peng: 'Пингвин чистый и пушистый' };
+  setCaption('Купаемся', `${done[id]}. Кого ещё?`, { buttons: [['again', 'Купать ещё'], ['endroom', 'Хватит']] });
+}
+function addDuck() {
+  if (room !== 'bath') return;
+  const n = (bath && bath.ducks) || 0;
+  if (n >= 8) { say('shket', L.bath.full); return; }
+  WD.room.duck();
+  if (bath) bath.ducks = n + 1; else bath = { ducks: n + 1 };
+  say(S.pick(['manya', 'shket', 'peng']), S.pick(L.bath.duck));
+}
+/* балкон: полив раз в день растит цветы, пузыри лопаются тапом, голубь прилетает за крошками */
+function waterPlants() {
+  WD.room.water();
+  say(S.pick(['manya', 'shket']), S.pick(L.balcony.water));
+  if (state.plantDay === today()) { setTimeout(() => say('peng', L.balcony.again), 1200); return; }
+  state.plantDay = today();
+  state.plants = state.plants.map(v => Math.min(5, v + 1));
+  save();
+  setTimeout(() => {
+    WD.room.plants(state.plants);
+    const lv = state.plants[0];
+    say('manya', L.balcony.grown[lv >= 5 ? 2 : lv >= 3 ? 1 : 0]);
+    setCaption('Балкон', lv >= 5 ? 'Все цветы распустились! Не забывай поливать — им нравится.' : `Цветы подросли: ${lv} из 5. Полей завтра — подрастут ещё.`);
+  }, 1700);
+}
+function startBubbles() {
+  closeTray();
+  mode = 'bubbles'; popped = 0;
+  WD.room.bubbles(16);
+  say(S.pick(['manya', 'shket', 'peng']), S.pick(L.balcony.bubbles));
+  setCaption('Пузыри', 'Лопай пузыри тапом! Лопнуто: 0');
+  setTimeout(() => {
+    if (mode !== 'bubbles') return;
+    mode = 'idle';
+    setCaption('Пузыри', popped ? `Лопнуто ${popped} ${S.plural(popped, ['пузырь', 'пузыря', 'пузырей'])}! Ещё?` : 'Пузыри улетели. Попробуй ещё!');
+  }, 15000);
+}
+function popOne() {
+  popped++;
+  $('story').textContent = `Лопай пузыри тапом! Лопнуто: ${popped}`;
+  if (popped % 4 === 0) say(S.pick(['manya', 'shket', 'peng']), S.pick(['Бульк!', 'Ещё!', 'Ловко!', 'Ура!']));
+}
+function callPigeon() {
+  WD.room.pigeon(true);
+  ['manya', 'shket', 'peng'].forEach((id, i) => setTimeout(() => say(id, L.balcony.pigeon[id]), 300 + i * 1100));
+}
+/* коридор: фото у зеркала в рамке-полароиде, сохранить в «Фото»; обнимашки */
+let photoBlob = null;
+function takePhoto() {
+  closeTray();
+  S.LAYOUT.hall(WD);
+  ['manya', 'shket', 'peng'].forEach(id => WD.react(id, 'hop'));
+  say(S.pick(['manya', 'shket', 'peng']), S.pick(L.hall.photo));
+  setTimeout(() => {
+    stage.classList.remove('flash'); void stage.offsetWidth; stage.classList.add('flash');
+    const shot = WD.photo(900, 1100);
+    const img = new Image();
+    img.onload = () => {
+      const c = document.createElement('canvas'); c.width = 1000; c.height = 1360;
+      const g = c.getContext('2d');
+      g.fillStyle = '#fffdf8'; g.fillRect(0, 0, c.width, c.height);
+      g.drawImage(img, 50, 50, 900, 1100);
+      g.fillStyle = '#4a3428'; g.font = `56px Pangolin, 'Comic Sans MS', cursive`; g.textAlign = 'center';
+      g.fillText('Шкет, Маня и Пингвин', 500, 1235);
+      g.fillStyle = '#a08a7a'; g.font = `36px Pangolin, 'Comic Sans MS', cursive`;
+      g.fillText(now().toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' }), 500, 1300);
+      $('photoImg').src = c.toDataURL('image/jpeg', 0.9);
+      c.toBlob(b => { photoBlob = b; }, 'image/jpeg', 0.9);
+      $('photo').hidden = false;
+      state.photos++; save();
+    };
+    img.src = shot;
+  }, 900);
+}
+$('photoClose').addEventListener('click', () => { $('photo').hidden = true; });
+$('photoSave').addEventListener('click', async () => {
+  if (!photoBlob) return;
+  const file = new File([photoBlob], `shket-i-manya-${Date.now()}.jpg`, { type: 'image/jpeg' });
+  try {
+    if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: 'Шкет, Маня и Пингвин' }); return; }
+  } catch (e) { if (e && e.name === 'AbortError') return; }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(photoBlob); a.download = file.name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+});
+function groupHug() {
+  closeTray();
+  S.hugSetup(WD);
+  ['manya', 'shket', 'peng'].forEach((id, i) => setTimeout(() => { WD.react(id, 'squish'); burst(id, 3); }, i * 250));
+  say(S.pick(['manya', 'shket', 'peng']), fill(S.pick(L.hall.hug)));
+  setTimeout(() => { if (room === 'hall' && mode === 'idle') S.LAYOUT.hall(WD); }, 4000);
+}
+/* кладовая: сундук открывается раз в день, внутри — новая вещь для гардероба (а когда всё собрано — печеньки) */
+function openChest() {
+  closeTray();
+  if (state.boxDay === today()) {
+    WD.react('shket', 'squish');
+    say(S.pick(['manya', 'shket', 'peng']), S.pick(L.pantry.already));
+    setCaption('Кладовая', 'Сундук сегодня уже открывали. Загляни завтра — там будет что-то новое.');
+    return;
+  }
+  state.boxDay = today();
+  const next = S.UNLOCKS.find(u => !state.unlocked.includes(u.id));
+  if (next) {
+    state.unlocked.push(next.id); save();
+    WD.room.chest(true, next.id);
+    setTimeout(() => { ['manya', 'shket', 'peng'].forEach(id => WD.react(id, 'hop')); say('manya', 'Ого! Это мне? Нам!'); }, 900);
+    setCaption('Кладовая', `В сундуке — ${next.name.toLowerCase()}! Теперь это есть в гардеробе: жми «Нарядить».`);
+  } else {
+    save();
+    WD.room.chest(true, null);
+    ['manya', 'shket', 'peng'].forEach((id, i) => setTimeout(() => { WD.react(id, 'chomp'); burst(id, 2); state.fed[id] = Date.now(); }, 600 + i * 400));
+    say('shket', L.pantry.treat);
+    setCaption('Кладовая', 'Сегодня в сундуке печеньки — всех угостили. Завтра будет ещё.');
+    save();
+  }
+}
+
 /* ---------- прятки ---------- */
 function startHide() {
   closeTray();
@@ -597,6 +806,12 @@ $('gameBtns').addEventListener('click', e => {
     if (act === 'giveup') hideFound(true);
     else if (act === 'again') startHide();
     else show(false);
+  } else if (mode === 'bath') {
+    if (act === 'soap') scrub(2);
+    else if (act === 'rinse') rinse();
+    else if (act === 'dry') dryOff();
+    else if (act === 'again') { WD.stage(S.LAYOUT.bath, ctxNow({}), 'bath'); startBath(); }
+    else endRoomMode();
   } else if (mode === 'cook') {
     if (act === 'stir') { WD.cook.stir(true); setTimeout(() => WD.cook.stir(false), 600); stirBy(200); }
     else if (act === 'eat') eatDish();

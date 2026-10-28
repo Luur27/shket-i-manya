@@ -126,6 +126,16 @@ function makeTextures() {
     gr.addColorStop(0, 'rgba(255,255,255,0.9)'); gr.addColorStop(0.5, 'rgba(255,255,255,0.35)'); gr.addColorStop(1, 'rgba(255,255,255,0)');
     g.fillStyle = gr; g.fillRect(0, 0, w, w);
   });
+  TX.drop = canvasTex(32, 32, (g) => { g.fillStyle = '#7fc4ec'; g.beginPath(); g.moveTo(16, 3); g.bezierCurveTo(26, 16, 26, 29, 16, 29); g.bezierCurveTo(6, 29, 6, 16, 16, 3); g.fill(); });
+  TX.bubble = canvasTex(64, 64, (g) => {
+    const gr = g.createRadialGradient(32, 32, 14, 32, 32, 30); gr.addColorStop(0, 'rgba(210,235,255,0.15)'); gr.addColorStop(0.75, 'rgba(170,215,255,0.45)'); gr.addColorStop(1, 'rgba(120,180,240,0.9)');
+    g.fillStyle = gr; g.beginPath(); g.arc(32, 32, 29, 0, 7); g.fill();
+    g.lineWidth = 3.5; g.strokeStyle = 'rgba(80,140,215,0.95)'; g.beginPath(); g.arc(32, 32, 28, 0, 7); g.stroke();
+    g.lineWidth = 3; g.strokeStyle = 'rgba(242,138,160,0.85)'; g.beginPath(); g.arc(32, 32, 27, 0.3, 1.6); g.stroke();
+    g.strokeStyle = 'rgba(127,200,160,0.7)'; g.beginPath(); g.arc(32, 32, 27, 3.4, 4.4); g.stroke();
+    g.fillStyle = 'rgba(255,255,255,0.95)'; g.beginPath(); g.ellipse(22, 20, 7, 4, -0.6, 0, 7); g.fill();
+  });
+  TX.star = canvasTex(64, 64, (g) => { g.fillStyle = '#ffd36b'; g.beginPath(); for (let i = 0; i < 10; i++) { const r = i % 2 ? 12 : 30, a = i / 10 * Math.PI * 2 - Math.PI / 2; g.lineTo(32 + Math.cos(a) * r, 32 + Math.sin(a) * r); } g.closePath(); g.fill(); });
   TX.heart = canvasTex(64, 64, (g) => {
     g.fillStyle = '#ef5f6f'; g.beginPath(); g.moveTo(32, 56); g.bezierCurveTo(2, 34, 8, 6, 32, 20); g.bezierCurveTo(56, 6, 62, 34, 32, 56); g.fill();
   });
@@ -307,6 +317,32 @@ const ACC = {
     return g;
   },
   tangerine() { return P.tangerine(0, 0.02, 0, 0.12, false); },
+  /* вещи из коробки в кладовой */
+  chef() {
+    const g = new THREE.Group(), m = plush('#ffffff', TX.plush, 0.85, '#ffffff', 0.01);
+    mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.13, 24), m, g, 0, 0.065, 0);
+    [[0, 0.2, 0, 0.12], [-0.08, 0.17, 0, 0.08], [0.08, 0.17, 0, 0.08], [0, 0.17, 0.07, 0.08], [0, 0.17, -0.07, 0.08]].forEach(([x, y, z, r]) => blob(m, r, r * 0.8, r, x, y, z, g));
+    return g;
+  },
+  flowers() {
+    const g = new THREE.Group();
+    const ring = mesh(new THREE.TorusGeometry(0.15, 0.02, 8, 32), plush('#6fae4f', null, 0.8), g, 0, 0.02, 0); ring.rotation.x = Math.PI / 2;
+    ['#f28aa0', '#ffd36b', '#c7a4f0', '#ffffff', '#f7a23b', '#9fc1e6'].forEach((c, i) => { const a = i / 6 * Math.PI * 2; blob(plush(c, null, 0.6, '#ffffff'), 0.045, 0.03, 0.045, Math.sin(a) * 0.15, 0.04, Math.cos(a) * 0.15, g); });
+    return g;
+  },
+  bunny() {
+    const g = new THREE.Group(), w = plush('#ffffff', TX.fleece, 0.9, '#ffffff', 0.03), pink = plush('#f6b8c4', null, 0.8);
+    mesh(new THREE.TorusGeometry(0.14, 0.012, 8, 32, Math.PI), plush('#f28aa0', null, 0.6), g, 0, 0, 0);
+    for (const s of [-1, 1]) { const e = new THREE.Group(); e.position.set(s * 0.07, 0.05, 0); e.rotation.z = -s * 0.2; g.add(e); blob(w, 0.04, 0.16, 0.03, 0, 0.14, 0, e); blob(pink, 0.022, 0.12, 0.01, 0, 0.14, 0.022, e); }
+    return g;
+  },
+  cap() {
+    const g = new THREE.Group(), m = plush('#e5484d', TX.plush, 0.8, '#ffb0b0', 0.01);
+    mesh(new THREE.SphereGeometry(0.15, 32, 12, 0, Math.PI * 2, 0, Math.PI / 2), m, g, 0, 0, 0);
+    const v = mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.015, 24, 1, false, -Math.PI / 2, Math.PI), m, g, 0, 0.005, 0.11); v.scale.set(1, 1, 1.1);
+    blob(plush('#ffffff', null, 0.6), 0.025, 0.02, 0.025, 0, 0.15, 0, g);
+    return g;
+  },
 };
 function attach(h, where, obj, rot) {
   const a = h.anchor[where];
@@ -325,6 +361,11 @@ const EYE = { open: 1, closed: 0.14, happy: 0.16, wide: 1.32, grumpy: 0.85 };
 let outfit = {};
 function pose(id, o = {}) {
   const h = H3[id], d = Object.assign({}, DEF[id], o);
+  // новая поза отменяет незаконченный выход в комнату (например, фото сразу после перехода)
+  if (h.walk) {
+    h.walk = null;
+    if (!Object.values(H3).some(x => x.walk) && walkCb) { const cb = walkCb; walkCb = null; setTimeout(cb, 0); }
+  }
   h.place.visible = d.visible !== false;
   h.place.position.set(d.x, d.y != null ? d.y : TOP, d.z);
   h.place.rotation.set(0, d.ry, 0);
@@ -691,6 +732,83 @@ const COOK_API = {
   eat() { if (COOK.dish) { anims.push({ o: COOK.dish, kind: 'shrink', t0: t + 0.3, dur: 1.4 }); COOK.dish = null; } },
 };
 
+/* ---------- занятия в остальных комнатах ---------- */
+let FOAM = [], BUBBLES = [];
+function duckModel() {
+  const g = new THREE.Group(), y = shiny('#ffd84a');
+  blob(y, 0.11, 0.08, 0.14, 0, 0.06, 0, g); blob(y, 0.065, 0.065, 0.065, 0, 0.15, 0.08, g);
+  const b = mesh(new THREE.ConeGeometry(0.025, 0.06, 10), shiny('#f08a3c'), g, 0, 0.14, 0.16); b.rotation.x = Math.PI / 2;
+  for (const s of [-1, 1]) blob(shiny('#1a1a1a'), 0.01, 0.012, 0.01, s * 0.03, 0.17, 0.135, g);
+  return g;
+}
+const ROOM_API = {
+  /* ванная: пена на герое, смыть душем, уточки */
+  foam(id, n = 3) {
+    const h = H3[id], p = h.place.position, s = h.place.scale.x, m = plush('#ffffff', TX.fleece, 0.9, '#ffffff', 0.04);
+    for (let i = 0; i < n; i++) {
+      const r = 0.05 + Math.random() * 0.06;
+      const f = blob(m, r, r * 0.85, r, p.x + (Math.random() - 0.5) * 0.7 * s, p.y + h.top * s * (0.35 + Math.random() * 0.6), p.z + 0.15 + Math.random() * 0.25, new THREE.Group());
+      add(f.parent); FOAM.push(f.parent);
+      anims.push({ o: f.parent, kind: 'pop', t0: t, dur: 0.35 });
+    }
+    if (Math.random() < 0.6) { const b = sprite(TX.bubble, p.x + (Math.random() - 0.5) * 0.6, p.y + h.top * s * 0.8, p.z + 0.3, 0.12, null); anims.push({ o: b, kind: 'rise', x0: b.position.x, t0: t, life: 3, ph: Math.random() * 6 }); }
+  },
+  rinse() {
+    FOAM.forEach(f => anims.push({ o: f, kind: 'shrink', t0: t + Math.random() * 0.6, dur: 0.5 })); FOAM = [];
+    for (let i = 0; i < 26; i++) { const sp = sprite(TX.drop, BATH.x + (Math.random() - 0.5) * 1.4, 2.8, BATH.z + (Math.random() - 0.5) * 0.6, 0.07, null); anims.push({ o: sp, kind: 'drop', y0: 2.8 + Math.random() * 0.6, y1: BATH.water, t0: t + Math.random() * 1.2, dur: 0.55 }); }
+  },
+  duck() {
+    const d = duckModel(); d.position.set(BATH.x + (Math.random() - 0.5) * 1.5, 2.4, BATH.z + (Math.random() - 0.5) * 0.4); d.rotation.y = Math.random() * 6;
+    add(d); anims.push({ o: d, kind: 'duck', y0: 2.4, y1: BATH.water - 0.03, t0: t, dur: 0.6, ph: Math.random() * 6 });
+  },
+  /* балкон: полив, пузыри, голубь */
+  plants: setPlants,
+  water() {
+    PLANTS.forEach((g, i) => {
+      for (let k = 0; k < 8; k++) { const sp = sprite(TX.drop, g.position.x + (Math.random() - 0.5) * 0.4, TOP + 2.0, g.position.z, 0.06, null); anims.push({ o: sp, kind: 'drop', y0: TOP + 1.9 + Math.random() * 0.3, y1: TOP + 1.22, t0: t + i * 0.5 + Math.random() * 0.4, dur: 0.45 }); }
+    });
+  },
+  bubbles(n = 12) {
+    for (let i = 0; i < n; i++) {
+      const id = ['manya', 'shket', 'peng'][i % 3], p = H3[id].place.position;
+      const sp = sprite(TX.bubble, p.x + (Math.random() - 0.5) * 0.9, p.y + 0.5 + Math.random() * 0.5, p.z + 0.35, 0.32 + Math.random() * 0.2, null);
+      anims.push({ o: sp, kind: 'rise', x0: sp.position.x, t0: t + i * 0.35, life: 9 + Math.random() * 3, ph: Math.random() * 6, speed: 0.16 });
+      BUBBLES.push(sp);
+    }
+  },
+  pop(x, y) {
+    cast(x, y);
+    const hit = ray.intersectObjects(BUBBLES.filter(b => b.visible), false)[0];
+    if (!hit) return false;
+    hit.object.visible = false;
+    const s = sprite(TX.soft, hit.object.position.x, hit.object.position.y, hit.object.position.z, 0.25, null);
+    anims.push({ o: s, kind: 'shrink', t0: t, dur: 0.25 });
+    return true;
+  },
+  pigeon(on) {
+    balconyPigeon.visible = on;
+    if (on) { for (let i = 0; i < 6; i++) add(blob(plush('#e6c88f', null, 0.8), 0.015, 0.012, 0.015, 1.85 + Math.random() * 0.3, TOP + 1.0, -1.3 + (Math.random() - 0.5) * 0.06, new THREE.Group()).parent); anims.push({ o: balconyPigeon.userData.head, kind: 'peck', t0: t }); }
+  },
+  /* кладовая: открыть сундук и показать, что в нём */
+  chest(open, itemId) {
+    anims.push({ o: CHEST.lid, kind: 'lid', from: CHEST.lid.rotation.x, to: open ? -1.9 : 0, t0: t, dur: 0.6 });
+    if (open && itemId && ACC[itemId]) {
+      const it = ACC[itemId](); it.scale.multiplyScalar(2.2); it.position.set(0, TOP + 0.35, 0.5); add(it);
+      anims.push({ o: it, kind: 'reveal', y0: TOP + 0.35, y1: TOP + 1.25, t0: t + 0.4, dur: 0.9 });
+      for (let i = 0; i < 6; i++) { const s = sprite(TX.star, (Math.random() - 0.5) * 0.9, TOP + 0.9 + Math.random() * 0.6, 0.6, 0.14, 'float'); s.material.opacity = 0.9; }
+    }
+  },
+};
+/* фото текущей комнаты — для фотобудки в коридоре */
+function photo(w, h) {
+  renderer.setSize(w, h, false);
+  camera.aspect = w / h; fit(camera.aspect); placeCamera();
+  renderer.render(scene, camera);
+  const url = renderer.domElement.toDataURL('image/png');
+  restoreSize();
+  return url;
+}
+
 /* ---------- вход в комнату: трое заходят по очереди ---------- */
 let walkCb = null;
 const WALK = { manya: 'stomp', shket: 'roll', peng: 'waddle' };
@@ -802,6 +920,151 @@ function buildKitchen() {
   const shade = mesh(new THREE.ConeGeometry(0.32, 0.26, 32, 1, true), plush('#ffd36b', null, 0.6), room, 0, 3.3, 0.1); shade.material.side = THREE.DoubleSide;
   return room;
 }
+/* пол на уровне TOP — в комнатах без кровати герои стоят на нём */
+function floorAt(room, tex, color = '#ffffff') {
+  const m = mesh(new THREE.PlaneGeometry(6, 4.2), flat(color, 0.8, tex), room, 0, TOP, -0.1);
+  m.rotation.x = -Math.PI / 2; m.castShadow = false;
+  const front = mesh(new THREE.BoxGeometry(6, 0.6, 0.05), flat('#e6dccf', 0.9), room, 0, TOP - 0.3, 2.0); front.castShadow = false;
+  return m;
+}
+function backWall(room, tex) { mesh(new THREE.PlaneGeometry(14, 7), flat('#ffffff', 0.8, tex), room, 0, 2.3, -1.6).castShadow = false; }
+function planks(color, line, rep) {
+  return canvasTex(128, 128, (c, w) => { c.fillStyle = color; c.fillRect(0, 0, w, w); c.strokeStyle = line; c.lineWidth = 3; for (let y = 0; y <= w; y += 32) { c.beginPath(); c.moveTo(0, y); c.lineTo(w, y); c.stroke(); const x = (y / 32) % 2 ? 40 : 96; c.beginPath(); c.moveTo(x, y); c.lineTo(x, y + 32); c.stroke(); } }, rep);
+}
+/* ванная: голубая плитка, ванна с водой у стены, зеркало, полотенца на крючках */
+const BATH = { water: TOP + 0.52, x: 0, z: -0.85 };
+function buildBath() {
+  const room = new THREE.Group(); scene.add(room);
+  TX.bathTiles = canvasTex(128, 128, (c, w) => { c.fillStyle = '#e3f1f7'; c.fillRect(0, 0, w, w); c.strokeStyle = '#b9d7e4'; c.lineWidth = 3; for (let i = 0; i <= w; i += 32) { c.beginPath(); c.moveTo(i, 0); c.lineTo(i, w); c.moveTo(0, i); c.lineTo(w, i); c.stroke(); } }, [14, 7]);
+  TX.bathFloor = canvasTex(64, 64, (c, w) => { c.fillStyle = '#f2f5f6'; c.fillRect(0, 0, w, w); c.fillStyle = '#d6e2e8'; c.fillRect(0, 0, 32, 32); c.fillRect(32, 32, 32, 32); }, [10, 7]);
+  backWall(room, TX.bathTiles);
+  floorAt(room, TX.bathFloor);
+  const porcelain = shiny('#fbfbfa');
+  mesh(new THREE.BoxGeometry(2.2, 0.56, 0.95), porcelain, room, BATH.x, TOP + 0.28, BATH.z);
+  for (const s of [-1, 1]) blob(porcelain, 0.12, 0.28, 0.48, BATH.x + s * 1.1, TOP + 0.28, BATH.z, room);
+  const water = new THREE.MeshPhysicalMaterial({ color: C('#9fd6e8'), roughness: 0.05, transparent: true, opacity: 0.9, clearcoat: 1 }); MATS.push(water);
+  const wtop = mesh(new THREE.PlaneGeometry(2.0, 0.78), water, room, BATH.x, BATH.water, BATH.z); wtop.rotation.x = -Math.PI / 2; wtop.castShadow = false;
+  const gold = new THREE.MeshStandardMaterial({ color: C('#e9b949'), metalness: 0.9, roughness: 0.3 }); MATS.push(gold);
+  for (const [x, z] of [[-0.95, -0.45], [0.95, -0.45], [-0.95, 0.4], [0.95, 0.4]]) blob(gold, 0.06, 0.06, 0.06, BATH.x + x, TOP + 0.03, BATH.z + z, room);
+  const chrome = new THREE.MeshStandardMaterial({ color: C('#d4d8de'), metalness: 1, roughness: 0.15 }); MATS.push(chrome);
+  mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.55, 12), chrome, room, -0.95, TOP + 0.75, -1.35);
+  const spout = mesh(new THREE.CylinderGeometry(0.025, 0.025, 0.3, 12), chrome, room, -0.82, TOP + 1.0, -1.35); spout.rotation.z = Math.PI / 2;
+  const mirror = new THREE.MeshStandardMaterial({ color: C('#e9f2f6'), metalness: 1, roughness: 0.05, envMapIntensity: 1.2 }); MATS.push(mirror);
+  const mr = mesh(new THREE.CircleGeometry(0.5, 40), mirror, room, -1.35, 2.35, -1.58); mr.castShadow = false;
+  const fr = mesh(new THREE.TorusGeometry(0.5, 0.045, 12, 48), gold, room, -1.35, 2.35, -1.57); fr.castShadow = false;
+  [['#f6c6cf', 1.15], ['#bfe3d6', 1.65]].forEach(([c, x]) => {
+    mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.1, 8), chrome, room, x, 2.55, -1.52).rotation.x = Math.PI / 2;
+    const tw = blob(plush(c, TX.plush, 0.95, '#ffffff', 0.03), 0.2, 0.42, 0.06, x, 2.15, -1.5, room); tw.rotation.z = 0.05;
+  });
+  mesh(new THREE.BoxGeometry(0.9, 0.04, 0.22), flat('#ffffff', 0.4), room, 1.4, 1.65, -1.48);
+  [['#ef8f8a', 1.1, 0.26], ['#9fc1e6', 1.3, 0.2], ['#ffd36b', 1.5, 0.3], ['#c7a4f0', 1.7, 0.22]].forEach(([c, x, h]) => mesh(new THREE.CylinderGeometry(0.06, 0.06, h, 16), shiny(c), room, x, 1.67 + h / 2, -1.48));
+  const mat = mesh(new THREE.BoxGeometry(1.4, 0.015, 0.7), plush('#c7a4f0', TX.plush, 0.95, '#efe0ff', 0.03), room, 0, TOP + 0.008, 0.35); mat.castShadow = false;
+  return room;
+}
+/* балкон: дощатый пол, перила, за ними небо с городом (то же небо, что и в окнах), ящики с цветами */
+const PLANTS = [];
+let balconyPigeon;
+function buildBalcony() {
+  const room = new THREE.Group(); scene.add(room);
+  const sm = new THREE.MeshBasicMaterial({ map: skyMats[0] ? skyMats[0].map : skyTex('day') }); skyMats.push(sm);
+  mesh(new THREE.PlaneGeometry(20, 12), sm, room, 0, 3.4, -4).castShadow = false;
+  floorAt(room, planks('#c99a6a', '#a87a4a', [6, 4]));
+  const white = flat('#fbf7f0', 0.5);
+  mesh(new THREE.BoxGeometry(5.2, 0.08, 0.12), white, room, 0, TOP + 0.95, -1.3);
+  mesh(new THREE.BoxGeometry(5.2, 0.05, 0.08), white, room, 0, TOP + 0.15, -1.3);
+  for (let x = -2.5; x <= 2.5; x += 0.25) mesh(new THREE.BoxGeometry(0.04, 0.8, 0.04), white, room, x, TOP + 0.55, -1.3);
+  const wallT = canvasTex(64, 64, (c, w) => { c.fillStyle = '#efe0d2'; c.fillRect(0, 0, w, w); c.fillStyle = '#e4d2c2'; for (let i = 0; i < 40; i++) c.fillRect(rnd() * w, rnd() * w, 3, 3); }, [4, 4]);
+  const side = mesh(new THREE.PlaneGeometry(4, 6), flat('#ffffff', 0.9, wallT), room, -2.65, 2.4, -0.3); side.rotation.y = Math.PI / 2; side.castShadow = false;
+  const pot = flat('#d98e6a', 0.7), soil = flat('#6b4a32', 0.9);
+  [-1.4, 0, 1.4].forEach(x => {
+    mesh(new THREE.BoxGeometry(0.62, 0.22, 0.28), pot, room, x, TOP + 1.1, -1.3);
+    mesh(new THREE.BoxGeometry(0.56, 0.02, 0.22), soil, room, x, TOP + 1.21, -1.3).castShadow = false;
+    const g = new THREE.Group(); g.position.set(x, TOP + 1.22, -1.3); room.add(g); PLANTS.push(g);
+  });
+  const curve = new THREE.QuadraticBezierCurve3(new THREE.Vector3(-2.6, 3.0, -1.2), new THREE.Vector3(0, 2.5, -1.0), new THREE.Vector3(2.6, 3.0, -1.2));
+  mesh(new THREE.TubeGeometry(curve, 30, 0.008, 6, false), flat('#6f5a4e', 0.6), room).castShadow = false;
+  for (let i = 0; i < 11; i++) { const p = curve.getPoint((i + 0.5) / 11); const m = new THREE.MeshStandardMaterial({ color: C(['#ffd36b', '#f7a7b8', '#9fe0c8'][i % 3]), emissive: C(['#ffd36b', '#f7a7b8', '#9fe0c8'][i % 3]), emissiveIntensity: 0.2 }); mesh(new THREE.SphereGeometry(0.045, 12, 10), m, room, p.x, p.y - 0.07, p.z).castShadow = false; bulbs.push(m); }
+  balconyPigeon = makePigeon(); balconyPigeon.position.set(2.0, TOP + 1.0, -1.3); balconyPigeon.rotation.y = -0.6; balconyPigeon.scale.setScalar(2); balconyPigeon.visible = false; room.add(balconyPigeon);
+  setPlants([0, 0, 0]);
+  return room;
+}
+function makePigeon() {
+  const p = new THREE.Group();
+  const pg = plush('#9aa3b0', TX.plush, 0.8, '#e0e6ee');
+  blob(pg, 0.09, 0.07, 0.12, 0, 0, 0, p); const head = blob(pg, 0.055, 0.055, 0.055, 0, 0.09, 0.08, p);
+  blob(shiny('#222222'), 0.012, 0.012, 0.012, 0.03, 0.1, 0.125, p);
+  const bk = mesh(new THREE.ConeGeometry(0.012, 0.04, 8), flat('#d9a65a'), p, 0, 0.085, 0.14); bk.rotation.x = Math.PI / 2;
+  p.userData.head = head;
+  return p;
+}
+/* цветы растут по уровням 0–5: росток → листья → бутон → цветок */
+function setPlants(levels) {
+  const colors = ['#f28aa0', '#ffd36b', '#c7a4f0'];
+  PLANTS.forEach((g, i) => {
+    g.children.slice().forEach(c => { g.remove(c); });
+    const lv = Math.max(0, Math.min(5, levels[i] || 0)), stem = flat('#4f8c3c', 0.7), leaf = plush('#7fbf63', null, 0.7, '#d6f0c8');
+    for (let k = 0; k < 3; k++) {
+      const x = (k - 1) * 0.17, h = 0.06 + lv * 0.07 + (k === 1 ? 0.04 : 0);
+      seg(stem, [x, 0, 0], [x, h, 0], 0.012, g);
+      for (let l = 0; l < Math.min(lv + 1, 3); l++) { const y = h * (0.35 + l * 0.22); const lf = blob(leaf, 0.04, 0.012, 0.022, x + (l % 2 ? 0.035 : -0.035), y, 0, g); lf.rotation.z = l % 2 ? -0.5 : 0.5; }
+      if (lv >= 3) { const r = lv >= 5 ? 0.075 : lv === 4 ? 0.06 : 0.035; const fm = plush(colors[i], null, 0.6, '#ffffff'); for (let p = 0; p < (lv >= 4 ? 5 : 1); p++) { const a = p / 5 * Math.PI * 2; blob(fm, r * 0.6, r * 0.6, r * 0.3, x + (lv >= 4 ? Math.cos(a) * r * 0.6 : 0), h + (lv >= 4 ? Math.sin(a) * r * 0.6 : 0.02), 0.01, g); } if (lv >= 4) blob(plush('#ffd36b', null, 0.6), r * 0.35, r * 0.35, r * 0.2, x, h, 0.03, g); }
+    }
+  });
+}
+/* коридор: обои в полоску, входная дверь, вешалка с куртками и шарфом, большое зеркало, дорожка */
+function buildHall() {
+  const room = new THREE.Group(); scene.add(room);
+  backWall(room, canvasTex(64, 64, (c, w) => { c.fillStyle = '#f1e4d2'; c.fillRect(0, 0, w, w); c.fillStyle = '#e8d6bf'; c.fillRect(0, 0, 16, w); c.fillRect(32, 0, 6, w); }, [20, 7]));
+  floorAt(room, planks('#b98a5c', '#99703f', [6, 4]));
+  const wood = plush('#a8774a', TX.plush, 0.6, '#e8c49a', 0.01);
+  mesh(new THREE.BoxGeometry(1.0, 2.2, 0.08), wood, room, 1.35, TOP + 1.1, -1.55);
+  for (const [w, h, y] of [[0.75, 0.75, 1.55], [0.75, 0.85, 0.6]]) mesh(new THREE.BoxGeometry(w, h, 0.02), plush('#b98a5c', TX.plush, 0.6, '#f0d0a8', 0.01), room, 1.35, TOP + y, -1.5);
+  const gold = new THREE.MeshStandardMaterial({ color: C('#e9b949'), metalness: 0.9, roughness: 0.3 }); MATS.push(gold);
+  blob(gold, 0.045, 0.045, 0.045, 1.72, TOP + 1.05, -1.46, room);
+  blob(gold, 0.02, 0.02, 0.01, 1.35, TOP + 1.55, -1.49, room);
+  const mirror = new THREE.MeshStandardMaterial({ color: C('#e9f2f6'), metalness: 1, roughness: 0.05, envMapIntensity: 1.2 }); MATS.push(mirror);
+  mesh(new THREE.BoxGeometry(0.9, 1.9, 0.04), plush('#f4e7d4', null, 0.5), room, -1.25, TOP + 1.2, -1.57);
+  mesh(new THREE.PlaneGeometry(0.75, 1.75), mirror, room, -1.25, TOP + 1.2, -1.545).castShadow = false;
+  mesh(new THREE.BoxGeometry(1.0, 0.08, 0.1), wood, room, 0.05, TOP + 2.0, -1.54);
+  [['#7fa9c4', -0.25], ['#e5a46a', 0.35]].forEach(([c, x]) => { blob(gold, 0.025, 0.025, 0.06, x, TOP + 1.95, -1.48, room); blob(plush(c, TX.plush, 0.9, '#ffffff'), 0.2, 0.42, 0.12, x, TOP + 1.55, -1.45, room); });
+  const scarf = plush('#ffffff', null, 0.9); scarf.map = TX.stripes;
+  blob(scarf, 0.06, 0.4, 0.04, 0.05, TOP + 1.6, -1.44, room);
+  const rug = mesh(new THREE.BoxGeometry(1.1, 0.015, 2.4), plush('#c0504d', TX.plush, 0.95, '#ffb0a8', 0.03), room, 0, TOP + 0.008, 0.1); rug.castShadow = false;
+  [[-2.0, '#5a7fb5'], [-1.75, '#ef8f8a']].forEach(([x, c]) => { for (const dz of [-0.07, 0.07]) blob(plush(c, null, 0.6), 0.1, 0.06, 0.05, x, TOP + 0.06, -1.25 + dz, room); });
+  return room;
+}
+/* кладовая: тёплая лампочка, полки с банками и коробками, метла и сундук с сюрпризом посередине */
+const CHEST = {};
+function buildPantry() {
+  const room = new THREE.Group(); scene.add(room);
+  backWall(room, planks('#d9c2a3', '#bfa483', [12, 6]));
+  floorAt(room, planks('#a8774a', '#8a5e35', [6, 4]));
+  const shelfM = plush('#b98a5c', TX.plush, 0.7, '#f0d0a8', 0.01);
+  [1.2, 1.9, 2.6].forEach((y, r) => {
+    mesh(new THREE.BoxGeometry(3.6, 0.06, 0.35), shelfM, room, 0, TOP + y, -1.42);
+    for (let i = 0; i < 7; i++) {
+      const x = -1.55 + i * 0.5 + (r % 2) * 0.2;
+      if ((i + r) % 3 === 0) mesh(new THREE.BoxGeometry(0.34, 0.28, 0.26), plush('#d8a46a', TX.plush, 0.9, '#f2d0a8', 0.02), room, x, TOP + y + 0.17, -1.42);
+      else { const jar = new THREE.MeshPhysicalMaterial({ color: C(['#f7a23b', '#e5484d', '#7fbf63', '#ffd36b'][(i + r) % 4]), roughness: 0.15, clearcoat: 1, transparent: true, opacity: 0.85 }); MATS.push(jar); mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.22, 16), jar, room, x, TOP + y + 0.14, -1.42); mesh(new THREE.CylinderGeometry(0.085, 0.085, 0.04, 16), flat('#fbf7f0'), room, x, TOP + y + 0.27, -1.42); }
+    }
+  });
+  const broom = new THREE.Group(); broom.position.set(-2.1, TOP, -1.2); broom.rotation.z = -0.15; room.add(broom);
+  mesh(new THREE.CylinderGeometry(0.02, 0.02, 1.6, 8), shelfM, broom, 0, 0.95, 0);
+  mesh(new THREE.ConeGeometry(0.18, 0.35, 16), plush('#e3c27a', TX.plush, 0.95), broom, 0, 0.17, 0);
+  mesh(new THREE.CylinderGeometry(0.006, 0.006, 1.3, 6), flat('#555555'), room, 0, 4.05, 0.2);
+  const bulb = mesh(new THREE.SphereGeometry(0.1, 16, 12), new THREE.MeshBasicMaterial({ color: C('#fff1c4') }), room, 0, 3.35, 0.2); bulb.castShadow = false;
+  const pl = new THREE.PointLight(C('#ffcf87'), 0.9, 6, 2); pl.position.set(0, 3.2, 0.2); room.add(pl);
+  // сундук: корпус и крышка на шарнире
+  const chest = new THREE.Group(); chest.position.set(0, TOP, 0.5); room.add(chest);
+  const cw = plush('#b9773f', TX.plush, 0.6, '#f0c090', 0.02), band = new THREE.MeshStandardMaterial({ color: C('#e9b949'), metalness: 0.8, roughness: 0.35 }); MATS.push(band);
+  mesh(new THREE.BoxGeometry(0.9, 0.45, 0.55), cw, chest, 0, 0.225, 0);
+  for (const x of [-0.3, 0.3]) mesh(new THREE.BoxGeometry(0.06, 0.46, 0.56), band, chest, x, 0.225, 0);
+  const lid = new THREE.Group(); lid.position.set(0, 0.45, -0.275); chest.add(lid);
+  const lidMesh = mesh(new THREE.CylinderGeometry(0.275, 0.275, 0.9, 24, 1, false, 0, Math.PI), cw, lid, 0, 0, 0.275); lidMesh.rotation.z = Math.PI / 2;
+  blob(band, 0.05, 0.06, 0.02, 0, 0.0, 0.56, lid);
+  CHEST.group = chest; CHEST.lid = lid;
+  return room;
+}
 function setRoom(id) {
   curRoom = ROOMS[id] ? id : 'bedroom';
   Object.keys(ROOMS).forEach(k => { ROOMS[k].visible = k === curRoom; });
@@ -851,6 +1114,9 @@ function stage(setup, ctx, room = 'bedroom') {
   Object.values(H3).forEach(h => { h.walk = null; });
   walkCb = null;
   Object.assign(COOK, { bowl: null, fill: null, spoon: null, n: 0, dish: null, stirring: false });
+  FOAM = []; BUBBLES = [];
+  if (balconyPigeon) balconyPigeon.visible = false;
+  if (CHEST.lid) CHEST.lid.rotation.x = 0;
   if (OVEN.door) { OVEN.door.emissiveIntensity = 0; ovenLight.intensity = 0; }
   props.children.slice().forEach(c => { props.remove(c); dispose(c); });
   Object.values(H3).forEach(h => (h.acc || []).forEach(a => { if (a.parent) a.parent.remove(a); dispose(a); }));
@@ -982,6 +1248,11 @@ function tick() {
     else if (a.kind === 'drop') { const p = Math.min(1, (t - a.t0) / a.dur); o.position.y = a.y0 + (a.y1 - a.y0) * p * p; o.rotation.y += dt * 4; if (p >= 1) o.visible = false; }
     else if (a.kind === 'shrink') { const p = Math.min(1, Math.max(0, (t - a.t0) / a.dur)); o.scale.setScalar(Math.max(0.001, 1 - p)); if (p >= 1) o.visible = false; }
     else if (a.kind === 'pop') { const p = Math.min(1, (t - a.t0) / a.dur); o.scale.setScalar(p < 1 ? Math.sin(p * Math.PI * 0.5) * (1 + Math.sin(p * Math.PI) * 0.15) : 1); }
+    else if (a.kind === 'rise') { const p = (t - a.t0) / a.life; if (p < 0) { o.visible = false; return; } if (p >= 1) { o.visible = false; return; } if (!a.started) { a.started = true; o.visible = true; } o.position.y += dt * (a.speed || 0.28); o.position.x = a.x0 + Math.sin(t * 2 + a.ph) * 0.08; o.material.opacity = Math.min(1, (1 - p) * 4); }
+    else if (a.kind === 'duck') { const p = Math.min(1, (t - a.t0) / a.dur); o.position.y = p < 1 ? a.y0 + (a.y1 - a.y0) * p * p : a.y1 + Math.sin(t * 2.4 + a.ph) * 0.015; if (p >= 1) o.rotation.z = Math.sin(t * 1.7 + a.ph) * 0.08; }
+    else if (a.kind === 'peck') { o.rotation.x = Math.max(0, Math.sin((t - a.t0) * 5)) * 0.7; }
+    else if (a.kind === 'lid') { const p = Math.min(1, (t - a.t0) / a.dur); o.rotation.x = a.from + (a.to - a.from) * (1 - (1 - p) * (1 - p)); }
+    else if (a.kind === 'reveal') { const p = Math.min(1, Math.max(0, (t - a.t0) / a.dur)); o.position.y = a.y0 + (a.y1 - a.y0) * (1 - (1 - p) * (1 - p)); o.rotation.y = t * 1.5; }
   });
   if (COOK.stirring && COOK.spoon) COOK.spoon.rotation.y += dt * 7;
   frameCbs.forEach(cb => cb());
@@ -1018,6 +1289,10 @@ function init(container) {
   }
   ROOMS.bedroom = buildBedroom();
   ROOMS.kitchen = buildKitchen();
+  ROOMS.bath = buildBath();
+  ROOMS.balcony = buildBalcony();
+  ROOMS.hall = buildHall();
+  ROOMS.pantry = buildPantry();
   setRoom('bedroom');
   props = new THREE.Group(); scene.add(props);
   [makeManya(), makeShket(), makePenguin()].forEach(h => {
@@ -1040,7 +1315,7 @@ function init(container) {
 }
 
 window.WORLD = {
-  init, stage, setTod, pose, pickHero, pickPoint, heroScreen, react, snapshot, restoreSize, walkIn, cook: COOK_API,
+  init, stage, setTod, pose, pickHero, pickPoint, heroScreen, react, snapshot, restoreSize, walkIn, photo, cook: COOK_API, room: ROOM_API,
   onFrame(cb) { frameCbs.push(cb); },
   setOutfit(o) { outfit = o || {}; },
   heroWorld(id) { return H3[id].place.position.clone(); },

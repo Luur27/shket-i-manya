@@ -358,10 +358,10 @@ function sleepSetup(W) {
 const ROOMS = [
   { id: 'bedroom', name: 'Спальня', ready: true, text: 'Спальня — тут мы живём. Можно нарядиться, поиграть в прятки или лечь спать.' },
   { id: 'kitchen', name: 'Кухня', ready: true, text: 'Кухня. Пахнет мандаринами. Приготовим что-нибудь вместе?' },
-  { id: 'bath', name: 'Ванная', ready: false },
-  { id: 'balcony', name: 'Балкон', ready: false },
-  { id: 'hall', name: 'Коридор', ready: false },
-  { id: 'pantry', name: 'Кладовая', ready: false },
+  { id: 'bath', name: 'Ванная', ready: true, text: 'Ванная. Пахнет пеной. Кого искупаем? А ещё тут живут резиновые уточки.' },
+  { id: 'balcony', name: 'Балкон', ready: true, text: 'Балкон. Тут растут наши цветы — поливай их каждый день, и они расцветут. Можно пускать пузыри.' },
+  { id: 'hall', name: 'Коридор', ready: true, text: 'Коридор. Большое зеркало — можно сфотографироваться всем вместе.' },
+  { id: 'pantry', name: 'Кладовая', ready: true, text: 'Кладовая. Тут стоит сундук: каждый день в нём что-то новое.' },
 ];
 const LAYOUT = {
   bedroom: W => { W.pose('manya', {}); W.pose('shket', { ry: -1.4 }); W.pose('peng', {}); },
@@ -370,7 +370,42 @@ const LAYOUT = {
     W.pose('shket', { x: -0.1, z: -0.2, ry: -1.57 });
     W.pose('peng', { x: 0.95, z: -0.35, ry: -0.3 });
   },
+  bath: W => {
+    W.pose('manya', { x: -1.05, z: 0.25, ry: 0.35 });
+    W.pose('shket', { x: 0.05, z: 0.55, ry: -1.5 });
+    W.pose('peng', { x: 1.1, z: 0.2, ry: -0.35 });
+  },
+  balcony: W => {
+    W.pose('manya', { x: -1.0, z: 0.0, ry: 0.3 });
+    W.pose('shket', { x: 0.0, z: 0.5, ry: -1.4 });
+    W.pose('peng', { x: 1.0, z: -0.05, ry: -0.3 });
+  },
+  hall: W => {
+    W.pose('manya', { x: -0.95, z: 0.0, ry: 0.3 });
+    W.pose('shket', { x: 0.05, z: 0.5, ry: -1.5 });
+    W.pose('peng', { x: 0.95, z: -0.05, ry: -0.3 });
+  },
+  pantry: W => {
+    W.pose('manya', { x: -1.15, z: -0.1, ry: 0.5 });
+    W.pose('shket', { x: -0.75, z: 0.75, ry: -0.6 });
+    W.pose('peng', { x: 1.1, z: -0.1, ry: -0.45 });
+  },
 };
+/* ванная: выбранный герой сидит в воде, остальные смотрят спереди */
+function bathSetup(id) {
+  const front = { manya: { x: -1.05, z: 0.3, ry: 0.4 }, shket: { x: 0.05, z: 0.55, ry: -1.5 }, peng: { x: 1.1, z: 0.25, ry: -0.4 } };
+  const tub = { manya: { ry: 0 }, shket: { ry: -1.57, s: 0.8 }, peng: { ry: 0, s: 0.75 } };
+  return W => ['manya', 'shket', 'peng'].forEach(h => {
+    if (h === id) W.pose(h, Object.assign({ x: 0, z: -0.8, y: W.TOP + 0.22, eyes: 'happy' }, tub[h]));
+    else W.pose(h, Object.assign({ eyes: 'open' }, front[h], id === 'shket' && h !== 'shket' ? {} : id !== 'shket' && h === 'shket' ? { x: id === 'manya' ? -0.6 : 0.6 } : {}));
+  });
+}
+/* коридор: все вместе обнимаются посередине */
+function hugSetup(W) {
+  W.pose('manya', { x: -0.38, z: 0.0, ry: 0.55, eyes: 'happy', arms: ['hug', 'hug'] });
+  W.pose('peng', { x: 0.42, z: -0.05, ry: -0.55, eyes: 'happy', flips: ['down', 'out'] });
+  W.pose('shket', { x: 0.02, z: 0.45, ry: -1.57, eyes: 'happy' });
+}
 /* куда смотрят герои на кухне: на духовку (пока печётся) или на готовое блюдо */
 const KITCHEN_LOOK = {
   oven: W => {
@@ -387,6 +422,10 @@ const KITCHEN_LOOK = {
 const ENTER = {
   bedroom: ['Дома!', 'Моя подушка на месте?', 'Спальня — лучшая комната.'],
   kitchen: ['Чем пахнет?', 'Я помогу! Наверное.', 'Где тут холодильник?', 'Кухня! Моя любимая комната.'],
+  bath: ['Только не меня первого!', 'Где моя уточка?', 'Тут скользко!'],
+  balcony: ['Свежий воздух!', 'Смотри, как цветы подросли!', 'Голуби тут бывают. Я видел.'],
+  hall: ['Мы куда-то идём?', 'Смотри, зеркало! Это мы!', 'Сфоткаемся?'],
+  pantry: ['Тут темновато…', 'Что в сундуке?', 'Пахнет вареньем.'],
   peng: ['Опять идти…', 'Я шёл последним. С достоинством.', 'Можно было и подождать пингвина.'],
 };
 const INGREDIENTS = {
@@ -409,6 +448,39 @@ const COOK_LINES = {
   bake: ['Пахнет вкусно!', 'Ну скоро?', 'Не открывай, а то опадёт!'],
   done: ['Готово!', 'Ура, получилось!', 'Мы повара!'],
 };
+
+const ROOM_LINES = {
+  bath: {
+    into: { manya: 'Только не в глаза!', shket: 'Ванна! Мой любимый день!', peng: 'Наконец-то вода. Но тёплая…' },
+    scrub: ['Щекотно!', 'Пена!', 'Ещё за ушком!', 'Хи-хи!'],
+    rinse: ['Брр!', 'Как дождик!', 'Фух!'],
+    dry: { manya: 'Я чистая и пушистая!', shket: 'Блестящая капибара готова.', peng: 'Свежий пингвин. Почти как из Антарктиды.' },
+    duck: ['Уточка!', 'Кря!', 'Ещё одну!', 'Это моя уточка. Нет, моя!'],
+    full: 'Ванна полна уточек!',
+  },
+  balcony: {
+    water: ['Пейте, цветочки!', 'Расти большой!', 'Полили!'],
+    grown: ['Смотри, подросли!', 'Скоро будет цветок!', 'Распустился!', 'Красота!'],
+    again: 'Сегодня уже поливали — подрастут завтра.',
+    bubbles: ['Пузыри!', 'Лови!', 'Бульк!'],
+    pigeon: { manya: 'Голубь! Привет!', shket: 'Он ест наши крошки?', peng: 'А мне? Я тоже птица.' },
+  },
+  hall: {
+    photo: ['Улыбочку!', 'Сыр!', 'Чур, я в центре!'],
+    hug: ['Обнимашки!', 'Все вместе!', 'Иди к нам, {nick}!'],
+  },
+  pantry: {
+    already: ['Сегодня сундук уже открывали.', 'Новое будет завтра. Я проверю ночью.'],
+    treat: 'Тут печеньки! Всем по одной.',
+  },
+};
+/* что может выпасть из сундука — по одной вещи в день, по порядку */
+const UNLOCKS = [
+  { id: 'chef', name: 'Поварской колпак', short: 'Повар', kind: 'hat' },
+  { id: 'flowers', name: 'Венок из цветов', short: 'Венок', kind: 'hat' },
+  { id: 'bunny', name: 'Ушки зайчика', short: 'Ушки', kind: 'hat' },
+  { id: 'cap', name: 'Кепка', short: 'Кепка', kind: 'hat' },
+];
 
 /* ---------- реплики: {nick} / {Nick} — прозвище, выбирается заново на каждую реплику ---------- */
 const TALK = {
@@ -468,6 +540,7 @@ const WAKE = ['Доброе утро, {nick}!', 'Уже утро? Ура, {nick}
 window.SCENES_API = {
   CONFIG, SCENES, byId: Object.fromEntries(SCENES.map(s => [s.id, s])),
   HIDE_SPOTS, hideSetup, sleepSetup, ROOMS, LAYOUT, KITCHEN_LOOK, ENTER, INGREDIENTS, RECIPES, COOK_LINES,
+  bathSetup, hugSetup, ROOM_LINES, UNLOCKS,
   TALK, HUNGRY, PET, HELLO, FOODS, LIKES, FEED, WEAR, WEAR_LINES, UNDRESS, HIDE, SLEEPY, WAKE,
   plural, cap, pick, makeCtx, daysTogether, monthsTogether,
 };
