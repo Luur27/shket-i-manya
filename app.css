@@ -200,19 +200,16 @@ button { font: inherit; color: inherit; }
 
 /* ---------- кормушка ---------- */
 .tray {
-  position: fixed;
-  left: 50%; bottom: 0;
-  width: min(480px, 100%);
-  transform: translateX(-50%);
-  padding: 14px 16px calc(16px + env(safe-area-inset-bottom, 0px));
+  margin: 10px 12px 12px;
+  padding: 10px 12px 12px;
   background: var(--paper);
-  border-top: 1.5px solid var(--line);
-  border-radius: 22px 22px 0 0;
-  box-shadow: 0 -8px 24px var(--shadow);
-  z-index: 20;
-  animation: up .25s ease both;
+  border: 1.5px solid var(--line);
+  border-radius: 18px;
+  box-shadow: 0 2px 0 var(--shadow);
+  animation: trayin .22s ease both;
 }
-@keyframes up { from { transform: translate(-50%, 100%); } to { transform: translate(-50%, 0); } }
+.tray:not([hidden]) + .bar { display: none; }
+@keyframes trayin { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
 .tray-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
 .tray-head p { margin: 0; font-size: 14px; color: var(--muted); }
 .ghost-btn { border: none; background: none; padding: 8px; font-weight: 600; color: var(--accent); cursor: pointer; }

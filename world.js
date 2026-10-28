@@ -875,8 +875,10 @@ function frame() {
 }
 function fit(aspect) {
   const half = Math.tan(camera.fov * Math.PI / 360);
-  dist = Math.max(5.6, 1.85 / (half * aspect));
-  target.y = 0.9 + (dist - 5.6) * 0.45;   // чем уже кадр, тем дальше камера — поднимаем прицел, чтобы внизу не было пустого пола
+  // узкий кадр — камера дальше и прицел выше (чтобы внизу не было пустого пола);
+  // низкий широкий (когда открыта шторка) — камера ближе, чтобы герои не мельчили
+  dist = Math.max(4.7, 1.85 / (half * aspect));
+  target.y = Math.max(0.95, 0.9 + (dist - 5.6) * 0.45);
   camera.updateProjectionMatrix();
 }
 function placeCamera() {

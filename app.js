@@ -456,7 +456,7 @@ function startCook() {
   mode = 'cook';
   cook = { step: 'choose', recipe: null, added: [], stir: 0, look: null };
   S.LAYOUT.kitchen(WD);
-  setCaption('Готовим', 'Что приготовим? Каждый любит своё: Шкет — пирог с мандаринками, Маня — салат с клевером, Пингвин — рыбные котлетки, а блинчики любят все.', { buttons: [['endcook', 'Хватит']] });
+  setCaption('Готовим', 'Шкет любит пирог, Маня — салат, Пингвин — котлетки, а блинчики — все.', { buttons: [['endcook', 'Хватит']] });
   renderBar();
   openTray('recipe');
 }
@@ -465,7 +465,7 @@ function chooseRecipe(id) {
   if (!r || !cook) return;
   cook.recipe = r; cook.step = 'add'; cook.added = []; cook.stir = 0;
   WD.cook.bowl();
-  setCaption(r.name, `Нужно: ${r.need.map(i => S.INGREDIENTS[i].toLowerCase()).join(', ')}. Перетаскивай продукты в миску.`, { buttons: [['endcook', 'Хватит']] });
+  setCaption(r.name, `Нужно: ${r.need.map(i => S.INGREDIENTS[i].toLowerCase()).join(', ')}.`, { buttons: [['endcook', 'Хватит']] });
   openTray('ing');
 }
 function addIngredient(ing) {
