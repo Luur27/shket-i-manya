@@ -44,8 +44,13 @@ function fmtAway(ms) {
   const d = Math.round(ms / 86400000);
   return `${d} ${S.plural(d, ['день', 'дня', 'дней'])}`;
 }
-function fill(line, ctx) {
-  return line.replace('{nick}', ctx.nick).replace('{Nick}', S.cap(ctx.nick));
+/* прозвище выбирается заново на каждую реплику, чтобы не залипало одно на весь заход */
+let lastNick = '';
+function fill(line) {
+  let n;
+  do { n = S.pick(CFG.nicks); } while (n === lastNick && CFG.nicks.length > 1);
+  lastNick = n;
+  return line.replace(/\{nick\}/g, n).replace(/\{Nick\}/g, S.cap(n));
 }
 
 /* ---------- отрисовка сцены ---------- */
@@ -119,6 +124,7 @@ function arrive() {
     state.last = t;
     save();
     show(true);
+    if (!first) greet();
   } else {
     state.last = t;
     save();
@@ -163,12 +169,20 @@ function react(el, cls) {
   void g.getBoundingClientRect();
   g.classList.add(cls);
 }
+/* кто-нибудь здоровается, когда Вета возвращается */
+function greet() {
+  setTimeout(() => {
+    const chars = [...stage.querySelectorAll('[data-char]')];
+    if (!chars.length || document.hidden) return;
+    const el = S.pick(chars);
+    say(el, el.dataset.char, fill(S.pick(S.HELLO)));
+  }, 1100);
+}
 function talk(el, id) {
-  const ctx = ctxNow({});
   const hungry = !state.fed[id] || Date.now() - state.fed[id] > HUNGRY_MS;
-  const pool = hungry && Math.random() < 0.4 ? S.HUNGRY[id] : S.TALK[id];
+  const pool = hungry && Math.random() < 0.3 ? S.HUNGRY[id] : S.TALK[id];
   react(el, 'squish');
-  say(el, id, fill(S.pick(pool), ctx));
+  say(el, id, fill(S.pick(pool)));
 }
 
 /* ---------- гладить и тапать ---------- */
@@ -188,7 +202,7 @@ stage.addEventListener('pointermove', e => {
   if (!pet.done && pet.dist > 260) {
     pet.done = true;
     react(pet.el, 'squish');
-    say(pet.el, pet.id, S.pick(S.PET[pet.id]));
+    say(pet.el, pet.id, fill(S.pick(S.PET[pet.id])));
     burst(pet.el, 4);
   }
 });
@@ -249,10 +263,9 @@ foods.addEventListener('pointerup', e => {
 foods.addEventListener('pointercancel', () => { if (drag && drag.ghost) drag.ghost.remove(); drag = null; });
 
 function feed(el, id, food) {
-  const ctx = ctxNow({});
   const like = S.LIKES[id][food];
   react(el, like > 0 ? 'chomp' : 'squish');
-  say(el, id, fill(S.pick(S.FEED[id][like]), ctx));
+  say(el, id, fill(S.pick(S.FEED[id][like])));
   if (like > 0) {
     state.fed[id] = Date.now();
     burst(el, like === 2 ? 5 : 2);
@@ -331,6 +344,17 @@ const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platfor
 const standalone = window.navigator.standalone === true || matchMedia('(display-mode: standalone)').matches;
 if (isIOS && !standalone && !state.install) $('install').hidden = false;
 $('installOk').addEventListener('click', () => { $('install').hidden = true; state.install = true; save(); });
+
+/* ---------- без приближения на iPhone ----------
+   Safari не всегда слушается viewport и touch-action: щипок гасим через gesture-события,
+   быстрый второй тап — через touchend (реплики и глажка живут на pointer-событиях и не страдают). */
+['gesturestart', 'gesturechange', 'gestureend'].forEach(t => document.addEventListener(t, e => e.preventDefault(), { passive: false }));
+let lastTouchEnd = 0;
+document.addEventListener('touchend', e => {
+  const t = Date.now();
+  if (t - lastTouchEnd < 350 && !e.target.closest('.sheet')) e.preventDefault();
+  lastTouchEnd = t;
+}, { passive: false });
 
 /* ---------- приход и уход ---------- */
 document.addEventListener('visibilitychange', () => {

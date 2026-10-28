@@ -1,6 +1,6 @@
 // Офлайн: свои файлы — сначала из сети (чтобы обновления приходили сразу), без сети — из кэша.
 // Шрифты Google — из кэша, если уже скачаны.
-const CACHE = 'shket-manya-v1';
+const CACHE = 'shket-manya-v2';
 const SHELL = ['./', 'index.html', 'app.css', 'art.js', 'scenes.js', 'app.js', 'manifest.webmanifest', 'icons/icon-180.png', 'icons/icon-192.png', 'icons/icon-512.png'];
 
 self.addEventListener('install', e => {
