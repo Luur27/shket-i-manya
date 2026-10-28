@@ -300,10 +300,22 @@ function greet(pool) {
 function talk(id) {
   if (mode === 'sleep') { WD.react(id, 'squish'); say(id, fill(S.pick(S.SLEEPY))); return; }
   const hungry = !state.fed[id] || Date.now() - state.fed[id] > HUNGRY_MS;
-  const pool = hungry && Math.random() < 0.3 ? S.HUNGRY[id] : S.TALK[id];
+  let pool = hungry && Math.random() < 0.3 ? S.HUNGRY[id] : S.TALK[id];
+  if (id === 'peng' && (state.pengHugs || 0) >= 3 && Math.random() < 0.4) pool = S.PENG_WARM;   // оттаял
   WD.react(id, 'squish');
   say(id, fill(S.pick(pool)));
 }
+/* обнимашки: долго держать палец на герое. Пингвину нужнее всех — объятия считаются, и он оттаивает */
+function hug(id) {
+  WD.react(id, 'squish'); burst(id, 6);
+  if (mode === 'sleep') return say(id, fill(S.pick(S.SLEEPY)));
+  if (id === 'peng') {
+    state.pengHugs = (state.pengHugs || 0) + 1; save();
+    if (state.pengHugs === 1) return say('peng', S.PENG_FIRST_HUG);
+  }
+  say(id, fill(S.pick(S.HUG[id])));
+}
+const HOLD_MS = 550;
 
 /* ---------- тап, глажка, поворот комнаты, помешивание ---------- */
 let touch = null;
@@ -312,6 +324,11 @@ stage.addEventListener('pointerdown', e => {
   const stirring = mode === 'cook' && cook && cook.step === 'stir';
   const id = stirring ? null : WD.pickHero(e.clientX, e.clientY);
   touch = { id, stir: stirring, x: e.clientX, y: e.clientY, dist: 0, lastHeart: 0, done: false };
+  // палец держат на герое и не двигают — обнимашки (кроме игр, где тап по герою что-то значит)
+  if (id && !picked && (mode === 'idle' || mode === 'scene' || mode === 'sleep')) {
+    const t = touch;
+    t.hold = setTimeout(() => { if (touch === t && t.dist < 10) { t.hugged = true; hug(id); } }, HOLD_MS);
+  }
   if (!id && !stirring) WD.setDragging(true);
   if (stirring) WD.cook.stir(true);
   try { stage.setPointerCapture(e.pointerId); } catch (err) { /* не критично */ }
@@ -340,9 +357,10 @@ function endTouch(e) {
   if (!touch) return;
   const tp = touch;
   touch = null;
+  clearTimeout(tp.hold);
   WD.setDragging(false);
   if (tp.stir) { WD.cook.stir(false); return; }
-  if (tp.dist >= 10) return;
+  if (tp.dist >= 10 || tp.hugged) return;
   if (mode === 'bubbles') { if (WD.room.pop(e.clientX, e.clientY)) popOne(); return; }
   if (picked && picked.tray === 'ing') return addIngredient(picked.id);
   if (tp.id) {
@@ -355,7 +373,7 @@ function endTouch(e) {
   if (mode === 'hide') hideTapEmpty(e.clientX, e.clientY);
 }
 stage.addEventListener('pointerup', endTouch);
-stage.addEventListener('pointercancel', () => { if (touch && touch.stir) WD.cook.stir(false); touch = null; WD.setDragging(false); });
+stage.addEventListener('pointercancel', () => { if (touch) { clearTimeout(touch.hold); if (touch.stir) WD.cook.stir(false); } touch = null; WD.setDragging(false); });
 
 /* ---------- шторка снизу: еда, одёжка, рецепты, продукты ---------- */
 const ICON = {
