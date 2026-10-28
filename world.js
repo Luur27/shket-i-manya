@@ -369,11 +369,11 @@ const P = {
     const l = blob(plush('#6fae4f', null, 0.7), r * 0.42, r * 0.12, r * 0.22, r * 0.25, r * 1.85, 0, g); l.rotation.z = -0.4;
     return toProps ? add(g) : g;
   },
-  fish(x, y, z, s = 1) {
+  fish(x, y, z, s = 1, toProps = true) {
     const g = new THREE.Group(); g.position.set(x, y, z); g.scale.setScalar(s);
     blob(plush('#8fc2e0', null, 0.5, '#d9f0ff'), 0.16, 0.08, 0.05, 0, 0.08, 0, g);
-    const t = mesh(new THREE.ConeGeometry(0.07, 0.1, 3), plush('#6fa7c8', null, 0.6), g, 0.19, 0.08, 0); t.rotation.z = Math.PI / 2;
-    return add(g);
+    const tl = mesh(new THREE.ConeGeometry(0.07, 0.1, 3), plush('#6fa7c8', null, 0.6), g, 0.19, 0.08, 0); tl.rotation.z = Math.PI / 2;
+    return toProps ? add(g) : g;
   },
   laptopBack(x, z, s = 1) {
     const g = new THREE.Group(); g.position.set(x, TOP, z); g.scale.setScalar(s);
@@ -592,9 +592,124 @@ const P = {
   screenLight(x, y, z) { const l = new THREE.PointLight(C('#bfe0ff'), 0.8, 3, 2); l.position.set(x, y, z); anims.push({ o: l, kind: 'flicker', ph: 0, base: 0.8 }); return add(l); },
 };
 
+/* ---------- кухня: продукты, миска, блюда ---------- */
+function labelBox(w, h, d, color, text, textColor) {
+  const g = new THREE.Group();
+  const side = plush(color, null, 0.8, '#ffffff');
+  const lt = textTex([text], 128, 64, { size: 30, color: textColor || '#4a3428', bg: color });
+  mesh(new THREE.BoxGeometry(w, h, d), [side, side, side, side, flat('#ffffff', 0.8, lt), side], g, 0, h / 2, 0);
+  return g;
+}
+const ING = {
+  flour: () => { const g = labelBox(0.2, 0.24, 0.13, '#f6f1e6', 'МУКА', '#b5545a'); blob(plush('#f6f1e6', TX.plush, 0.9), 0.1, 0.05, 0.065, 0, 0.25, 0, g); return g; },
+  milk: () => { const g = labelBox(0.14, 0.24, 0.14, '#ffffff', 'МОЛОКО', '#2f7fd0'); const r = mesh(new THREE.ConeGeometry(0.1, 0.08, 4), plush('#7fb6e6', null, 0.6), g, 0, 0.28, 0); r.rotation.y = Math.PI / 4; return g; },
+  egg: () => { const g = new THREE.Group(); blob(plush('#fbf1dc', null, 0.4, '#ffffff'), 0.065, 0.085, 0.065, 0, 0.085, 0, g); return g; },
+  tangerine: () => P.tangerine(0, 0, 0, 0.09, false),
+  clover: () => { const g = new THREE.Group(); const m = plush('#7dbf63', null, 0.7); [[-0.05, 0], [0.05, 0], [0, 0.08]].forEach(([x, y]) => blob(m, 0.06, 0.06, 0.025, x, 0.12 + y, 0, g)); seg(flat('#4f8c3c'), [0, 0, 0], [0, 0.12, 0], 0.01, g); return g; },
+  carrot: () => { const g = new THREE.Group(); const c = mesh(new THREE.ConeGeometry(0.05, 0.26, 16), plush('#f08a3c', null, 0.6), g, 0, 0.13, 0); c.rotation.x = Math.PI; blob(plush('#6fae4f', null, 0.7), 0.04, 0.07, 0.04, 0, 0.3, 0, g); return g; },
+  apple: () => { const g = new THREE.Group(); blob(shiny('#e5484d'), 0.09, 0.085, 0.09, 0, 0.09, 0, g); seg(flat('#6b4524'), [0, 0.17, 0], [0.01, 0.22, 0], 0.008, g); return g; },
+  fish: () => P.fish(0, 0, 0, 1, false),
+};
+const ING_COLOR = { flour: '#f6f1e6', milk: '#ffffff', egg: '#ffd66b', tangerine: '#f7a23b', clover: '#7dbf63', carrot: '#f08a3c', apple: '#e5484d', fish: '#9fc8e0' };
+function plate(g, r = 0.3) { mesh(new THREE.CylinderGeometry(r, r * 0.9, 0.03, 40), plush('#ffffff', null, 0.25, '#ffffff'), g, 0, 0.015, 0); }
+const DISH = {
+  pancakes: () => {
+    const g = new THREE.Group(); plate(g);
+    const pm = plush('#e8b46a', TX.plush, 0.6, '#ffe2b0', 0.01);
+    for (let i = 0; i < 5; i++) mesh(new THREE.CylinderGeometry(0.2 - i * 0.004, 0.2, 0.035, 32), pm, g, (i % 2 - 0.5) * 0.01, 0.05 + i * 0.036, 0);
+    mesh(new THREE.CylinderGeometry(0.15, 0.17, 0.012, 32), shiny('#c97a2a'), g, 0, 0.225, 0);
+    blob(shiny('#d9434b'), 0.035, 0.035, 0.035, 0, 0.26, 0, g);
+    return g;
+  },
+  pie: () => {
+    const g = new THREE.Group(); plate(g, 0.34);
+    mesh(new THREE.CylinderGeometry(0.27, 0.25, 0.11, 40), plush('#e3a65f', TX.plush, 0.6, '#ffd9a0', 0.02), g, 0, 0.085, 0);
+    const om = plush('#f7a23b', null, 0.4, '#ffd9a0');
+    for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2; blob(om, 0.05, 0.015, 0.035, Math.sin(a) * 0.17, 0.145, Math.cos(a) * 0.17, g).rotation.y = a; }
+    blob(om, 0.06, 0.02, 0.06, 0, 0.15, 0, g);
+    return g;
+  },
+  salad: () => {
+    const g = new THREE.Group();
+    const pts = []; for (let i = 0; i <= 8; i++) { const a = i / 8 * Math.PI / 2; pts.push(new THREE.Vector2(Math.sin(a) * 0.26 + 0.02, -Math.cos(a) * 0.14 + 0.14)); }
+    const bm = plush('#bfe3d6', null, 0.3, '#ffffff'); bm.side = THREE.DoubleSide;
+    mesh(new THREE.LatheGeometry(pts, 32), bm, g);
+    const leaf = plush('#7dbf63', null, 0.7), car = plush('#f08a3c', null, 0.6), app = shiny('#e5484d');
+    for (let i = 0; i < 9; i++) { const a = i * 2.3, r = 0.08 + (i % 3) * 0.05; blob(leaf, 0.06, 0.03, 0.05, Math.sin(a) * r, 0.15, Math.cos(a) * r, g).rotation.y = a; }
+    for (let i = 0; i < 4; i++) { const a = i * 1.7; const c = mesh(new THREE.CylinderGeometry(0.012, 0.012, 0.1, 8), car, g, Math.sin(a) * 0.1, 0.18, Math.cos(a) * 0.1); c.rotation.z = 1.2; c.rotation.y = a; }
+    for (let i = 0; i < 3; i++) { const a = i * 2.1 + 0.5; blob(app, 0.03, 0.03, 0.03, Math.sin(a) * 0.14, 0.17, Math.cos(a) * 0.14, g); }
+    return g;
+  },
+  fishcakes: () => {
+    const g = new THREE.Group(); plate(g);
+    const fm = plush('#b9773f', TX.plush, 0.7, '#ffd0a0', 0.03);
+    [[-0.1, -0.05], [0.1, -0.05], [0, 0.1]].forEach(([x, z]) => blob(fm, 0.09, 0.04, 0.07, x, 0.06, z, g));
+    mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.012, 20), plush('#ffe066', null, 0.4), g, 0.18, 0.04, 0.12);
+    blob(plush('#6fae4f', null, 0.7), 0.03, 0.02, 0.05, -0.17, 0.05, 0.12, g);
+    return g;
+  },
+};
+const COOK = { bowl: null, fill: null, spoon: null, n: 0, dish: null, stirring: false };
+function cookBowl(x = 0, z = 0.6) {
+  const g = new THREE.Group(); g.position.set(x, TOP, z);
+  const pts = []; for (let i = 0; i <= 10; i++) { const a = i / 10 * Math.PI / 2; pts.push(new THREE.Vector2(Math.sin(a) * 0.3 + 0.02, -Math.cos(a) * 0.22 + 0.22)); }
+  const bm = plush('#ffffff', null, 0.25, '#ffffff'); bm.side = THREE.DoubleSide;
+  mesh(new THREE.LatheGeometry(pts, 40), bm, g);
+  const st = mesh(new THREE.TorusGeometry(0.315, 0.012, 8, 40), flat('#7fb6e6', 0.4), g, 0, 0.2, 0); st.rotation.x = Math.PI / 2;
+  COOK.fill = mesh(new THREE.CylinderGeometry(0.26, 0.2, 0.02, 32), plush('#f3e3c0', null, 0.6), g, 0, 0.04, 0);
+  COOK.fill.visible = false;
+  COOK.spoon = new THREE.Group(); COOK.spoon.position.set(0, 0.08, 0); g.add(COOK.spoon);
+  const sp = mesh(new THREE.CylinderGeometry(0.018, 0.024, 0.55, 8), flat('#c99a6a', 0.6), COOK.spoon, 0.09, 0.22, 0); sp.rotation.z = -0.35;
+  COOK.bowl = add(g); COOK.n = 0;
+}
+function cookAdd(ing) {
+  if (!COOK.bowl || !ING[ing]) return;
+  const o = ING[ing](), b = COOK.bowl.position;
+  o.position.set(b.x + (Math.random() - 0.5) * 0.1, TOP + 1.5, b.z);
+  add(o);
+  anims.push({ o, kind: 'drop', y0: TOP + 1.5, y1: TOP + 0.08, t0: t, dur: 0.45 });
+  setTimeout(() => {
+    COOK.n++;
+    const f = COOK.fill; if (!f) return;
+    f.visible = true;
+    f.position.y = 0.04 + COOK.n * 0.045;
+    f.scale.setScalar(1 + COOK.n * 0.08);
+    f.material.color.lerp(C(ING_COLOR[ing]), 1 / COOK.n);
+  }, 450);
+}
+function cookServe(dish, x = 0, z = 0.6) {
+  const g = DISH[dish](); g.position.set(x, TOP, z); add(g);
+  COOK.dish = g;
+  for (let i = 0; i < 2; i++) P.steam(x + (i - 0.5) * 0.15, TOP + 0.35, z);
+  anims.push({ o: g, kind: 'pop', t0: t, dur: 0.5 });
+}
+const COOK_API = {
+  bowl: cookBowl, add: cookAdd, serve: cookServe,
+  stir(on) { COOK.stirring = on; },
+  clear() { if (COOK.bowl) { anims.push({ o: COOK.bowl, kind: 'shrink', t0: t, dur: 0.4 }); COOK.bowl = null; } },
+  oven(on) { if (OVEN.door) { OVEN.door.emissiveIntensity = on ? 1.4 : 0; ovenLight.intensity = on ? 1.6 : 0; } },
+  eat() { if (COOK.dish) { anims.push({ o: COOK.dish, kind: 'shrink', t0: t + 0.3, dur: 1.4 }); COOK.dish = null; } },
+};
+
+/* ---------- вход в комнату: трое заходят по очереди ---------- */
+let walkCb = null;
+const WALK = { manya: 'stomp', shket: 'roll', peng: 'waddle' };
+function walkIn(cb) {
+  ['manya', 'shket', 'peng'].forEach((id, i) => {
+    const h = H3[id];
+    if (!h.place.visible) return;
+    const to = h.place.position.clone(), head = id === 'shket' ? 0 : Math.PI / 2;
+    h.walk = { from: new THREE.Vector3(-3.7 - i * 0.3, to.y, to.z + 0.3), to, ry0: head, ry1: h.place.rotation.y, t0: t + i * 0.55, dur: 1.6, style: WALK[id] };
+    h.place.position.copy(h.walk.from); h.place.rotation.y = head;
+  });
+  walkCb = cb || null;
+  if (!Object.values(H3).some(h => h.walk) && cb) cb();
+}
+
 /* ---------- комната ---------- */
-let skyMat, bulbs = [], sun, hemi, lamp, pigeon;
-function buildRoom() {
+let skyMats = [], bulbs = [], sun, hemi, lamp, pigeon, ovenLight, curRoom = 'bedroom';
+const ROOMS = {}, OVEN = {};
+function buildBedroom() {
   const room = new THREE.Group(); scene.add(room);
   const wall = mesh(new THREE.PlaneGeometry(14, 7), flat('#ffffff', 0.85, TX.wallpaper), room, 0, 2.3, -1.6); wall.castShadow = false;
   const floor = mesh(new THREE.PlaneGeometry(14, 10), flat('#cdbba8', 0.8), room, 0, -0.4, 0); floor.rotation.x = -Math.PI / 2; floor.castShadow = false;
@@ -606,14 +721,7 @@ function buildRoom() {
   for (const x of [-1.05, 1.05]) blob(pillowM, 0.82, 0.24, 0.36, x, 0.35, -1.12, room);
   const duvet = mesh(new THREE.CylinderGeometry(0.2, 0.2, 4.4, 32), plush('#ffffff', null, 0.9, '#ffffff'), room, 0, 0.34, 1.12);
   duvet.material.map = TX.duvet; duvet.rotation.z = Math.PI / 2;
-  const winG = new THREE.Group(); winG.position.set(1.55, 2.35, -1.56); room.add(winG);
-  skyMat = new THREE.MeshBasicMaterial({ map: skyTex('day') });
-  winG.add(new THREE.Mesh(new THREE.PlaneGeometry(1.3, 1.5), skyMat));
-  const frameM = flat('#fbf7f0', 0.5);
-  for (const [w, h, x, y] of [[1.42, 0.07, 0, 0.78], [1.42, 0.07, 0, -0.78], [0.07, 1.6, -0.68, 0], [0.07, 1.6, 0.68, 0], [0.05, 1.5, 0, 0], [1.3, 0.05, 0, 0.05]]) mesh(new THREE.BoxGeometry(w, h, 0.06), frameM, winG, x, y, 0.03);
-  mesh(new THREE.BoxGeometry(1.7, 0.07, 0.2), frameM, winG, 0, -0.85, 0.08);
-  const curtM = plush('#f0d3a0', TX.plush, 0.9, '#fff3dc', 0.01);
-  for (const s of [-1, 1]) mesh(new THREE.BoxGeometry(0.28, 1.95, 0.05), curtM, winG, s * 0.82, 0.03, 0.12);
+  const winG = makeWindow(room, 1.55, 2.35, '#f0d3a0');
   pigeon = new THREE.Group(); pigeon.position.set(0.3, -0.76, 0.1); winG.add(pigeon);
   const pg = plush('#9aa3b0', TX.plush, 0.8, '#e0e6ee');
   blob(pg, 0.09, 0.07, 0.12, 0, 0, 0, pigeon); blob(pg, 0.055, 0.055, 0.055, 0, 0.09, 0.08, pigeon);
@@ -637,6 +745,66 @@ function buildRoom() {
     const b = mesh(new THREE.SphereGeometry(0.045, 16, 12), m, room, p.x, p.y - 0.07, p.z); b.scale.set(1, 1.3, 1); b.castShadow = false;
     bulbs.push(m);
   }
+  return room;
+}
+/* окно с небом, рамой, подоконником и шторками — небо общее для всех окон и меняется со временем суток */
+function makeWindow(parent, x, y, curtain, w = 1.3, h = 1.5) {
+  const winG = new THREE.Group(); winG.position.set(x, y, -1.56); parent.add(winG);
+  const sm = new THREE.MeshBasicMaterial({ map: skyMats[0] ? skyMats[0].map : skyTex('day') });
+  skyMats.push(sm);
+  winG.add(new THREE.Mesh(new THREE.PlaneGeometry(w, h), sm));
+  const frameM = flat('#fbf7f0', 0.5);
+  for (const [fw, fh, fx, fy] of [[w + 0.12, 0.07, 0, h / 2 + 0.03], [w + 0.12, 0.07, 0, -h / 2 - 0.03], [0.07, h + 0.1, -w / 2 - 0.03, 0], [0.07, h + 0.1, w / 2 + 0.03, 0], [0.05, h, 0, 0], [w, 0.05, 0, 0.05]]) mesh(new THREE.BoxGeometry(fw, fh, 0.06), frameM, winG, fx, fy, 0.03);
+  mesh(new THREE.BoxGeometry(w + 0.4, 0.07, 0.2), frameM, winG, 0, -h / 2 - 0.1, 0.08);
+  const curtM = plush(curtain, TX.plush, 0.9, '#fff3dc', 0.01);
+  for (const s of [-1, 1]) mesh(new THREE.BoxGeometry(0.28, h + 0.45, 0.05), curtM, winG, s * (w / 2 + 0.17), 0.03, 0.12);
+  return winG;
+}
+/* кухня: плитка, стол в клетчатой скатерти (на нём сидят герои), гарнитур с духовкой, холодильник с рисунком */
+function buildKitchen() {
+  const room = new THREE.Group(); scene.add(room);
+  TX.tiles = canvasTex(128, 128, (c, w) => {
+    c.fillStyle = '#eef3ef'; c.fillRect(0, 0, w, w); c.strokeStyle = '#cfdcd4'; c.lineWidth = 3;
+    for (let y = 0; y <= w; y += 32) { c.beginPath(); c.moveTo(0, y); c.lineTo(w, y); c.stroke(); const off = (y / 32) % 2 ? 32 : 0; for (let x = off; x <= w; x += 64) { c.beginPath(); c.moveTo(x, y); c.lineTo(x, y + 32); c.stroke(); } }
+  }, [12, 6]);
+  TX.check = canvasTex(64, 64, (c, w) => { c.fillStyle = '#fbf6f0'; c.fillRect(0, 0, w, w); c.fillStyle = 'rgba(214,80,80,.5)'; c.fillRect(0, 0, 32, w); c.fillRect(0, 0, w, 32); }, [9, 6]);
+  mesh(new THREE.PlaneGeometry(14, 7), flat('#ffffff', 0.6, TX.tiles), room, 0, 2.3, -1.6).castShadow = false;
+  const floor = mesh(new THREE.PlaneGeometry(14, 10), flat('#c49a72', 0.8), room, 0, -0.4, 0); floor.rotation.x = -Math.PI / 2; floor.castShadow = false;
+  const cloth = flat('#ffffff', 0.9, TX.check);
+  mesh(new THREE.BoxGeometry(4.4, 0.12, 2.6), cloth, room, 0, TOP - 0.06, 0.1).castShadow = false;
+  const cab = flat('#9fc7b4', 0.6), wood = flat('#d9b48f', 0.5);
+  const handleM = new THREE.MeshStandardMaterial({ color: C('#c9ccd1'), metalness: 0.8, roughness: 0.3 }); MATS.push(handleM);
+  mesh(new THREE.BoxGeometry(3.4, 1.45, 0.55), cab, room, 0.45, 0.3, -1.32);
+  mesh(new THREE.BoxGeometry(3.5, 0.07, 0.62), wood, room, 0.45, 1.06, -1.3);
+  for (const x of [0.25, 1.15, 1.9]) { mesh(new THREE.BoxGeometry(0.02, 1.2, 0.01), flat('#86b29e'), room, x - 0.05, 0.35, -1.04); mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.12, 8), handleM, room, x + 0.1, 0.75, -1.02); }
+  OVEN.door = new THREE.MeshStandardMaterial({ color: C('#2b2b31'), emissive: C('#ff8a3c'), emissiveIntensity: 0, roughness: 0.2, metalness: 0.2 }); MATS.push(OVEN.door);
+  mesh(new THREE.BoxGeometry(0.85, 0.55, 0.03), flat('#e9ecef', 0.4), room, -0.6, 0.55, -1.035);
+  mesh(new THREE.BoxGeometry(0.7, 0.36, 0.02), OVEN.door, room, -0.6, 0.53, -1.015);
+  mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.6, 8), handleM, room, -0.6, 0.76, -0.995).rotation.z = Math.PI / 2;
+  ovenLight = new THREE.PointLight(C('#ff9a4a'), 0, 2.5, 2); ovenLight.position.set(-0.6, 0.55, -0.8); room.add(ovenLight);
+  mesh(new THREE.BoxGeometry(0.85, 2.6, 0.7), plush('#bfe3d6', null, 0.35, '#ffffff'), room, -1.85, 0.9, -1.25);
+  mesh(new THREE.BoxGeometry(0.86, 0.02, 0.71), flat('#9cc9b8'), room, -1.85, 1.55, -1.25);
+  mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.4, 8), handleM, room, -1.5, 1.85, -0.88);
+  mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.5, 8), handleM, room, -1.5, 1.05, -0.88);
+  [['#ef6f78', -2.05, 2.0], ['#ffd36b', -1.75, 2.15], ['#7fb6e6', -1.95, 1.75]].forEach(([c, x, y]) => { mesh(new THREE.CylinderGeometry(0.04, 0.04, 0.02, 16), flat(c, 0.5), room, x, y, -0.89).rotation.x = Math.PI / 2; });
+  const pic = textTex(['Шкет', 'Маня', 'Пингвин'], 128, 160, { size: 26, color: '#5a7fb5', bg: '#fffdf6' });
+  mesh(new THREE.PlaneGeometry(0.34, 0.42), new THREE.MeshStandardMaterial({ map: pic }), room, -1.85, 1.2, -0.893).castShadow = false;
+  mesh(new THREE.BoxGeometry(2.1, 0.75, 0.38), cab, room, -0.2, 2.75, -1.42);
+  for (const x of [-0.75, 0.3]) mesh(new THREE.CylinderGeometry(0.015, 0.015, 0.1, 8), handleM, room, x, 2.5, -1.22);
+  makeWindow(room, 1.45, 2.25, '#f2b8b0', 1.1, 1.2);
+  const kettle = plush('#ef8f8a', null, 0.3, '#ffd0cc');
+  blob(kettle, 0.18, 0.15, 0.18, 0.85, 1.25, -1.3, room);
+  mesh(new THREE.CylinderGeometry(0.02, 0.035, 0.16, 10), kettle, room, 1.05, 1.3, -1.3).rotation.z = -0.9;
+  [['#f6c6cf', 1.25], ['#a9cbe0', 1.45]].forEach(([c, x]) => mesh(new THREE.CylinderGeometry(0.06, 0.05, 0.13, 16), plush(c, null, 0.3), room, x, 1.16, -1.25));
+  mesh(new THREE.CylinderGeometry(0.08, 0.06, 0.14, 16), flat('#d98e6a'), room, 1.95, 1.17, -1.32);
+  blob(plush('#7fae6a', null, 0.8), 0.1, 0.14, 0.1, 1.95, 1.33, -1.32, room);
+  mesh(new THREE.CylinderGeometry(0.006, 0.006, 1.4, 6), flat('#555555'), room, 0, 4.1, 0.1);
+  const shade = mesh(new THREE.ConeGeometry(0.32, 0.26, 32, 1, true), plush('#ffd36b', null, 0.6), room, 0, 3.3, 0.1); shade.material.side = THREE.DoubleSide;
+  return room;
+}
+function setRoom(id) {
+  curRoom = ROOMS[id] ? id : 'bedroom';
+  Object.keys(ROOMS).forEach(k => { ROOMS[k].visible = k === curRoom; });
 }
 const TOD = {
   morning: { hemi: [0.5, '#fff0e0', '#c9b0a0'], sun: [1.7, '#ffd9b0'], lamp: 0, bulbs: 0.15, env: 0.45, exp: 0.92 },
@@ -653,7 +821,11 @@ function setTod(t, snow = false) {
   bulbs.forEach(m => { m.emissiveIntensity = L.bulbs; });
   MATS.forEach(m => { m.envMapIntensity = m.roughness < 0.3 ? L.env * 1.8 : L.env; });
   renderer.toneMappingExposure = L.exp;
-  if (t !== curTod || snow !== curSnow) { if (skyMat.map) skyMat.map.dispose(); skyMat.map = skyTex(t, snow); skyMat.needsUpdate = true; }
+  if (t !== curTod || snow !== curSnow) {
+    const old = skyMats[0] && skyMats[0].map, tex = skyTex(t, snow);
+    skyMats.forEach(m => { m.map = tex; m.needsUpdate = true; });
+    if (old) old.dispose();
+  }
   curTod = t; curSnow = snow;
 }
 
@@ -674,7 +846,12 @@ function dispose(root) {
   mats.forEach(m => { if (m.map && !Object.values(TX).includes(m.map)) m.map.dispose(); m.dispose(); });
   for (let i = MATS.length - 1; i >= 0; i--) if (mats.has(MATS[i])) MATS.splice(i, 1);
 }
-function stage(setup, ctx) {
+function stage(setup, ctx, room = 'bedroom') {
+  setRoom(room);
+  Object.values(H3).forEach(h => { h.walk = null; });
+  walkCb = null;
+  Object.assign(COOK, { bowl: null, fill: null, spoon: null, n: 0, dish: null, stirring: false });
+  if (OVEN.door) { OVEN.door.emissiveIntensity = 0; ovenLight.intensity = 0; }
   props.children.slice().forEach(c => { props.remove(c); dispose(c); });
   Object.values(H3).forEach(h => (h.acc || []).forEach(a => { if (a.parent) a.parent.remove(a); dispose(a); }));
   Object.values(H3).forEach(h => { h.acc = []; });
@@ -722,9 +899,10 @@ function pickHero(x, y) {
   while (o && !o.userData.hero) o = o.parent;
   return o ? o.userData.hero : null;
 }
+function shown(o) { for (; o; o = o.parent) if (!o.visible) return false; return true; }
 function pickPoint(x, y) {
   cast(x, y);
-  const hit = ray.intersectObjects(scene.children, true).find(i => i.object.type === 'Mesh');
+  const hit = ray.intersectObjects(scene.children, true).find(i => i.object.type === 'Mesh' && shown(i.object));
   return hit ? hit.point : null;
 }
 function heroScreen(id) {
@@ -766,6 +944,20 @@ function tick() {
     if (!reduce && h.anim === 'hop') lift = Math.max(0, Math.sin(t * 5 + i)) * 0.12;
     if (!reduce && h.anim === 'wiggle') rz = Math.sin(t * 4 + i) * 0.12;
     if (h.hop > 0) { h.hop -= dt; lift += Math.sin((0.6 - h.hop) / 0.6 * Math.PI) * 0.25; }
+    if (h.walk) {
+      const w = h.walk, p = Math.min(1, Math.max(0, (t - w.t0) / w.dur)), go = Math.min(1, p / 0.8);
+      h.place.position.lerpVectors(w.from, w.to, 1 - (1 - go) * (1 - go));
+      h.place.rotation.y = p < 0.8 ? w.ry0 : w.ry0 + (w.ry1 - w.ry0) * ((p - 0.8) / 0.2);
+      if (p > 0 && p < 0.8 && !reduce) {
+        if (w.style === 'stomp') lift += Math.abs(Math.sin(t * 11)) * 0.08;
+        else if (w.style === 'roll') { rz = Math.sin(t * 10) * 0.08; lift += Math.abs(Math.sin(t * 10)) * 0.03; }
+        else rz = Math.sin(t * 8) * 0.17;
+      }
+      if (p >= 1) {
+        h.walk = null;
+        if (!Object.values(H3).some(x => x.walk) && walkCb) { const cb = walkCb; walkCb = null; cb(); }
+      }
+    }
     h.body.scale.set(1 + 0.06 * h.sq - br * 0.5, 1 - 0.09 * h.sq + br, 1 + 0.06 * h.sq - br * 0.5);
     h.body.position.y = lift; h.body.rotation.z = rz;
     if (h.blinks) {
@@ -785,7 +977,11 @@ function tick() {
     else if (a.kind === 'flag') o.rotation.y = Math.sin(t * 2) * 0.25;
     else if (a.kind === 'spin') o.rotation.y = t;
     else if (a.kind === 'flicker') o.intensity = a.base * (0.8 + Math.sin(t * 7) * 0.12 + Math.sin(t * 2.3) * 0.08);
+    else if (a.kind === 'drop') { const p = Math.min(1, (t - a.t0) / a.dur); o.position.y = a.y0 + (a.y1 - a.y0) * p * p; o.rotation.y += dt * 4; if (p >= 1) o.visible = false; }
+    else if (a.kind === 'shrink') { const p = Math.min(1, Math.max(0, (t - a.t0) / a.dur)); o.scale.setScalar(Math.max(0.001, 1 - p)); if (p >= 1) o.visible = false; }
+    else if (a.kind === 'pop') { const p = Math.min(1, (t - a.t0) / a.dur); o.scale.setScalar(p < 1 ? Math.sin(p * Math.PI * 0.5) * (1 + Math.sin(p * Math.PI) * 0.15) : 1); }
   });
+  if (COOK.stirring && COOK.spoon) COOK.spoon.rotation.y += dt * 7;
   frameCbs.forEach(cb => cb());
   renderer.render(scene, camera);
   requestAnimationFrame(tick);
@@ -818,7 +1014,9 @@ function init(container) {
     scene.environment = pm.fromScene(es, 0.04).texture;
     pm.dispose();
   }
-  buildRoom();
+  ROOMS.bedroom = buildBedroom();
+  ROOMS.kitchen = buildKitchen();
+  setRoom('bedroom');
   props = new THREE.Group(); scene.add(props);
   [makeManya(), makeShket(), makePenguin()].forEach(h => {
     H3[h.id] = h; scene.add(h.place);
@@ -840,7 +1038,7 @@ function init(container) {
 }
 
 window.WORLD = {
-  init, stage, setTod, pose, pickHero, pickPoint, heroScreen, react, snapshot, restoreSize,
+  init, stage, setTod, pose, pickHero, pickPoint, heroScreen, react, snapshot, restoreSize, walkIn, cook: COOK_API,
   onFrame(cb) { frameCbs.push(cb); },
   setOutfit(o) { outfit = o || {}; },
   heroWorld(id) { return H3[id].place.position.clone(); },

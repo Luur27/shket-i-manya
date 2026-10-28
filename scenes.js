@@ -354,6 +354,62 @@ function sleepSetup(W) {
   W.P.zzz(-0.75, 1.65, -0.4); W.P.zzz(1.15, 2.05, -0.4); W.P.zzz(0.2, 1.35, 0.3);
 }
 
+/* ---------- квартира: комнаты, их раскладки и занятия ---------- */
+const ROOMS = [
+  { id: 'bedroom', name: 'Спальня', ready: true, text: 'Спальня — тут мы живём. Можно нарядиться, поиграть в прятки или лечь спать.' },
+  { id: 'kitchen', name: 'Кухня', ready: true, text: 'Кухня. Пахнет мандаринами. Приготовим что-нибудь вместе?' },
+  { id: 'bath', name: 'Ванная', ready: false },
+  { id: 'balcony', name: 'Балкон', ready: false },
+  { id: 'hall', name: 'Коридор', ready: false },
+  { id: 'pantry', name: 'Кладовая', ready: false },
+];
+const LAYOUT = {
+  bedroom: W => { W.pose('manya', {}); W.pose('shket', { ry: -1.4 }); W.pose('peng', {}); },
+  kitchen: W => {
+    W.pose('manya', { x: -0.95, z: -0.3, ry: 0.3 });
+    W.pose('shket', { x: -0.1, z: -0.2, ry: -1.57 });
+    W.pose('peng', { x: 0.95, z: -0.35, ry: -0.3 });
+  },
+};
+/* куда смотрят герои на кухне: на духовку (пока печётся) или на готовое блюдо */
+const KITCHEN_LOOK = {
+  oven: W => {
+    W.pose('manya', { x: -0.95, z: -0.3, ry: 2.6, eyes: 'wide' });
+    W.pose('shket', { x: -0.1, z: -0.2, ry: 2.4, eyes: 'wide' });
+    W.pose('peng', { x: 0.95, z: -0.35, ry: -2.6, eyes: 'wide' });
+  },
+  dish: W => {
+    W.pose('manya', { x: -0.95, z: -0.3, ry: 0.6, eyes: 'happy', arms: ['up', 'up'] });
+    W.pose('shket', { x: -0.1, z: -0.2, ry: -1.57, eyes: 'happy' });
+    W.pose('peng', { x: 0.95, z: -0.35, ry: -0.6, eyes: 'happy', flips: ['up', 'up'] });
+  },
+};
+const ENTER = {
+  bedroom: ['Дома!', 'Моя подушка на месте?', 'Спальня — лучшая комната.'],
+  kitchen: ['Чем пахнет?', 'Я помогу! Наверное.', 'Где тут холодильник?', 'Кухня! Моя любимая комната.'],
+  peng: ['Опять идти…', 'Я шёл последним. С достоинством.', 'Можно было и подождать пингвина.'],
+};
+const INGREDIENTS = {
+  flour: 'Мука', milk: 'Молоко', egg: 'Яйцо', tangerine: 'Мандаринка', clover: 'Клевер', carrot: 'Морковка', apple: 'Яблоко', fish: 'Рыбка',
+};
+const RECIPES = [
+  { id: 'pancakes', name: 'Блинчики', need: ['flour', 'milk', 'egg'], bake: true, likes: { shket: 2, manya: 2, peng: 1 } },
+  { id: 'pie', name: 'Мандариновый пирог', short: 'Пирог', need: ['flour', 'egg', 'tangerine'], bake: true, likes: { shket: 2, manya: 1, peng: 1 } },
+  { id: 'salad', name: 'Клеверный салат', short: 'Салат', need: ['clover', 'carrot', 'apple'], bake: false, likes: { shket: 1, manya: 2, peng: 0 } },
+  { id: 'fishcakes', name: 'Рыбные котлетки', short: 'Котлетки', need: ['fish', 'flour', 'egg'], bake: true, likes: { shket: 0, manya: 0, peng: 2 } },
+];
+const COOK_LINES = {
+  add: {
+    flour: ['Мука! Апчхи!', 'Шкет весь в муке.'], milk: ['Молочко!', 'Буль-буль.'], egg: ['Яичко — аккуратно!', 'Не разбей… а, уже.'],
+    tangerine: ['Мандаринка! Можно одну мне?', 'Шкет облизывается.'], clover: ['Клевер! Бе-е!', 'Самое вкусное — клевер.'],
+    carrot: ['Хрум!', 'Морковка — для зрения.'], apple: ['Яблочко!', 'Красное, как моя щёчка.'], fish: ['РЫБКА!', 'Это я принёс. Ну, почти.'],
+  },
+  wrong: ['Это не из этого рецепта!', 'Хм, а это сюда точно?', 'Не-не, это в другой раз.'],
+  stir: ['Мешаем-мешаем…', 'Кругами, кругами!', 'Я тоже хочу мешать!'],
+  bake: ['Пахнет вкусно!', 'Ну скоро?', 'Не открывай, а то опадёт!'],
+  done: ['Готово!', 'Ура, получилось!', 'Мы повара!'],
+};
+
 /* ---------- реплики: {nick} / {Nick} — прозвище, выбирается заново на каждую реплику ---------- */
 const TALK = {
   shket: ['Я не толстый, я плюшевый.', '{Nick}, ты пришла!', 'Я тебя ждал. Маня тоже, но меньше.', 'Мандаринку бы…', 'Можно я сегодня сплю в серединке?', 'Я храбрый. Я с тобой на капельницу ходил.', 'Погладь за ушком. Нет, за другим.',
@@ -411,7 +467,7 @@ const WAKE = ['Доброе утро, {nick}!', 'Уже утро? Ура, {nick}
 
 window.SCENES_API = {
   CONFIG, SCENES, byId: Object.fromEntries(SCENES.map(s => [s.id, s])),
-  HIDE_SPOTS, hideSetup, sleepSetup,
+  HIDE_SPOTS, hideSetup, sleepSetup, ROOMS, LAYOUT, KITCHEN_LOOK, ENTER, INGREDIENTS, RECIPES, COOK_LINES,
   TALK, HUNGRY, PET, HELLO, FOODS, LIKES, FEED, WEAR, WEAR_LINES, UNDRESS, HIDE, SLEEPY, WAKE,
   plural, cap, pick, makeCtx, daysTogether, monthsTogether,
 };

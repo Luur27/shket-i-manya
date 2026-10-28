@@ -25,13 +25,18 @@
       <h1>Шкет и Маня</h1>
       <p class="together" id="together"></p>
     </div>
+    <button class="icon-btn" id="btnRooms" type="button" aria-label="Комнаты">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 11L12 4l8.5 7"/><path d="M5.5 9.5V20h13V9.5"/><path d="M10 20v-5.5h4V20"/></svg>
+    </button>
     <button class="icon-btn" id="btnAlbum" type="button" aria-label="Альбом открыток">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="4" width="17" height="16" rx="2.5"/><path d="M3.5 15l4.5-4 4 3.5 3-2.5 5 4"/><circle cx="15.5" cy="8.5" r="1.6"/></svg>
       <span class="badge" id="albumBadge" hidden></span>
     </button>
   </header>
 
-  <main class="stage" id="stage" aria-label="Комната, где живут Шкет, Маня и Пингвин"></main>
+  <main class="stage" id="stage" aria-label="Комната, где живут Шкет, Маня и Пингвин">
+    <div class="curtain" id="curtain" aria-hidden="true"><span id="curtainName"></span></div>
+  </main>
 
   <section class="caption" aria-live="polite">
     <p class="away" id="away"></p>
@@ -41,24 +46,7 @@
     <div class="game-btns" id="gameBtns" hidden></div>
   </section>
 
-  <nav class="bar" aria-label="Что сделать">
-    <button class="tool" id="btnFeed" type="button">
-      <svg viewBox="-24 -24 48 48" aria-hidden="true"><circle cx="0" cy="3" r="14" fill="#f7a23b" stroke="#c9741c" stroke-width="2"/><ellipse cx="5" cy="-12" rx="7" ry="3.2" fill="#6fae4f" transform="rotate(-25 5 -12)"/></svg>
-      <span>Покормить</span>
-    </button>
-    <button class="tool" id="btnWear" type="button">
-      <svg viewBox="-24 -24 48 48" aria-hidden="true"><path d="M-12 16L0 -16L12 16Z" fill="#f4a1b5" stroke="#a35d6e" stroke-width="2" stroke-linejoin="round"/><g fill="#fff"><circle cx="-3" cy="6" r="2"/><circle cx="4" cy="-2" r="2"/></g><circle cx="0" cy="-17" r="4.5" fill="#ffd36b"/></svg>
-      <span>Нарядить</span>
-    </button>
-    <button class="tool" id="btnHide" type="button">
-      <svg viewBox="-24 -24 48 48" aria-hidden="true"><circle cx="-4" cy="-4" r="11" fill="none" stroke="#7a5a8c" stroke-width="3.2"/><path d="M4 4L14 14" stroke="#7a5a8c" stroke-width="4" stroke-linecap="round"/></svg>
-      <span>Прятки</span>
-    </button>
-    <button class="tool" id="btnSleep" type="button">
-      <svg viewBox="-24 -24 48 48" aria-hidden="true"><path d="M6 -16A14 14 0 1 0 14 8A11 11 0 0 1 6 -16Z" fill="#ffd36b" stroke="#c9a03d" stroke-width="2" stroke-linejoin="round"/></svg>
-      <span>Спать</span>
-    </button>
-  </nav>
+  <nav class="bar" id="bar" aria-label="Что сделать"></nav>
 </div>
 
 <div class="tray" id="tray" hidden>
@@ -79,6 +67,19 @@
       <button class="ghost-btn" id="albumClose" type="button">Закрыть</button>
     </div>
     <div id="albumBody"></div>
+  </div>
+</div>
+
+<div class="sheet" id="rooms" hidden>
+  <div class="sheet-inner">
+    <div class="sheet-head">
+      <div style="flex:1;min-width:0">
+        <h2>Квартира</h2>
+        <p>Куда пойдём? Все трое пойдут с тобой.</p>
+      </div>
+      <button class="ghost-btn" id="roomsClose" type="button">Закрыть</button>
+    </div>
+    <div class="room-grid" id="roomGrid"></div>
   </div>
 </div>
 
