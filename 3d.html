@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Шкет и Маня — 3D</title>
+<meta name="theme-color" content="#efe2d9">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Golos+Text:wght@400;600&family=Pangolin&display=swap">
+<link rel="stylesheet" href="app.css">
+<style>
+  #view { position: fixed; inset: 0; touch-action: none; }
+  #view canvas { display: block; width: 100%; height: 100%; }
+  .hud {
+    position: fixed; left: 0; right: 0; top: 0;
+    padding: calc(env(safe-area-inset-top, 0px) + 10px) 16px 0;
+    display: flex; align-items: flex-start; gap: 12px; pointer-events: none;
+  }
+  .hud .brand {
+    pointer-events: none; padding: 8px 12px 9px; border-radius: 14px;
+    background: var(--paper); border: 1.5px solid var(--line); box-shadow: 0 2px 0 var(--shadow);
+  }
+  .hud .brand h1 { font-size: 22px; }
+  .hud a { pointer-events: auto; text-decoration: none; }
+  .tods {
+    position: fixed; left: 50%; transform: translateX(-50%);
+    bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
+    display: flex; gap: 6px; padding: 6px;
+    border-radius: 999px; background: var(--paper); border: 1.5px solid var(--line);
+    box-shadow: 0 4px 14px var(--shadow);
+  }
+  .tods button { border: none; background: none; padding: 9px 14px; border-radius: 999px; font: 600 14px/1 var(--font-ui); cursor: pointer; }
+  .tods button[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); }
+  .tip {
+    position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(env(safe-area-inset-bottom, 0px) + 74px);
+    width: max-content; max-width: calc(100% - 32px); padding: 6px 12px; border-radius: 999px;
+    background: var(--paper); text-align: center; margin: 0; font-size: 13px; color: var(--muted); pointer-events: none;
+  }
+</style>
+</head>
+<body data-tod="day">
+<div id="view" role="img" aria-label="Шкет, Маня и Пингвин на кровати в 3D"></div>
+<header class="hud">
+  <div class="brand" style="flex:1">
+    <h1>Шкет и Маня · 3D</h1>
+    <p class="together">проба — сравни с обычной версией</p>
+  </div>
+  <a class="pill" href="./">Обычная</a>
+</header>
+<p class="tip">Тапни героя. Тяни пальцем — комната поворачивается.</p>
+<nav class="tods" aria-label="Время суток">
+  <button type="button" data-tod="day" aria-pressed="true">День</button>
+  <button type="button" data-tod="evening" aria-pressed="false">Вечер</button>
+  <button type="button" data-tod="night" aria-pressed="false">Ночь</button>
+</nav>
+<div class="fx" id="fx"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="art.js"></script>
+<script src="scenes.js"></script>
+<script src="3d.js"></script>
+</body>
+</html>
