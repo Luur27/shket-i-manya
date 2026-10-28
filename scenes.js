@@ -6,7 +6,7 @@ const A = window.ART;
 
 const CONFIG = {
   name: 'Вета',
-  from: 'Женя',                 // подпись в записках
+  from: ['Женя', 'Попка-карамелька'], // подпись в записках — как Вета его называет, выбирается случайно
   since: [2025, 6, 19],         // живут вместе с 19 июля 2025 (месяц с нуля: 6 = июль)
   penguin: 'Пингвин',           // имя пингвина, если появится
   nicks: ['тефтелька', 'фрикаделька', 'кошка', 'львёнок', 'принцесса', 'чебупелька'],
@@ -40,7 +40,7 @@ function makeCtx(o) {
   return {
     uid: o.uid, tod: o.tod, now, away: o.away || 0, first: !!o.first, variant: o.variant || '',
     months: monthsTogether(now), years: now.getFullYear() - CONFIG.since[0],
-    nick: pick(CONFIG.nicks, seed), cheeky: pick(CONFIG.cheeky, (seed * 7.31) % 1),
+    nick: pick(CONFIG.nicks, seed), cheeky: pick(CONFIG.cheeky, (seed * 7.31) % 1), sign: pick(CONFIG.from, (seed * 3.71) % 1),
   };
 }
 const P = () => CONFIG.penguin;

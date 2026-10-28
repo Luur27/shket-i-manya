@@ -74,7 +74,7 @@ function show(fade) {
   $('newcard').hidden = !state.cur.isNew;
   const note = sc.note ? sc.note(ctx) : '';
   $('note').hidden = !note;
-  if (note) { $('noteText').textContent = note; $('noteSign').textContent = `— ${CFG.from}`; }
+  if (note) { $('noteText').textContent = note; $('noteSign').textContent = `— ${ctx.sign}`; }
   const days = S.daysTogether(now());
   $('together').textContent = `вместе ${days} ${S.plural(days, ['день', 'дня', 'дней'])}`;
   updateBadge();
