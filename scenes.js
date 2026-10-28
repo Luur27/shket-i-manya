@@ -176,8 +176,9 @@ const SCENES = [
   {
     id: 'dance', title: 'Дискотека', rarity: 'common', hint: 'вечером',
     when: evening,
-    text: c => `Включили музыку и танцуют. Маня — красиво, ${P()} — с достоинством, Шкет — как может.`,
+    text: c => `Включили музыку и танцуют. Маня — красиво, ${P()} — с достоинством, Шкет — как может. А плюшевая Вета — лучше всех.`,
     setup: W => {
+      W.pose('veta', { eyes: 'happy', arms: ['up', 'wave'], anim: 'hop' });
       W.pose('manya', { eyes: 'happy', arms: ['up', 'up'], anim: 'hop' });
       W.pose('shket', { eyes: 'happy', ry: -1.4, anim: 'wiggle' });
       W.pose('peng', { eyes: 'happy', flips: ['up', 'up'], anim: 'wiggle' });
@@ -271,7 +272,7 @@ const SCENES = [
   {
     id: 'morningMess', title: 'Утро после сна', rarity: 'common', hint: 'утром',
     when: c => c.tod === 'morning',
-    text: c => `Утро. Все раскиданы кто куда: Маня сползла с подушки, Шкет — звёздочкой пузом кверху, а ${P()} опять на полу — каждую ночь одно и то же. Говорит, сам так решил.`,
+    text: c => `Утро. Вета потягивается, кудри во все стороны. Все раскиданы кто куда: Маня сползла с подушки, Шкет — звёздочкой пузом кверху, а ${P()} опять на полу — каждую ночь одно и то же. Говорит, сам так решил.`,
     setup: morningSetup,
   },
   {
@@ -282,6 +283,43 @@ const SCENES = [
       W.pose('shket', { x: 0.05, z: 0.25, ry: 0.7, s: 0.86, lie: 'star', eyes: 'happy' });
       W.pose('manya', { x: -1.05, z: -0.1, ry: 0.45, eyes: 'wide', arms: ['eyes', 'eyes'] });
       W.pose('peng', { x: 1.15, z: -0.15, ry: -0.5, eyes: 'grumpy', flips: ['down', 'out'] });
+    },
+  },
+  /* плюшевая Вета: игрушки сшили её сами — «чтобы ты была с нами, даже когда уходишь» */
+  {
+    id: 'vetaDoll', title: 'Новенькая', rarity: 'common', hint: 'знакомство с плюшевой Ветой',
+    when: () => true,
+    text: c => `Пока тебя не было, мы сшили… тебя! Маленькую плюшевую Вету — чтобы ты была с нами, даже когда уходишь. Маня делала волосы, Шкет — свитшот, а ${P()} — колечко в нос. Говорит, это было самое сложное.`,
+    setup: W => {
+      W.pose('veta', { x: 0, z: -0.4, eyes: 'happy', arms: ['wave', 'down'] });
+      W.pose('manya', { x: -0.95, z: -0.15, ry: 0.65, eyes: 'happy', arms: ['hug', 'hug'] });
+      W.pose('shket', { x: 0.7, z: 0.3, ry: -2.5, eyes: 'happy' });
+      W.pose('peng', { x: 1.3, z: -0.45, ry: -0.7, eyes: 'happy', flips: ['out', 'down'] });
+      W.P.hearts([[0, 2.0, -0.4], [-0.6, 1.7, 0], [1.2, 2.0, -0.4]]);
+    },
+  },
+  {
+    id: 'vetaHug', title: 'Обнимашки с Ветой', rarity: 'common',
+    when: () => true,
+    text: c => `Обнимают плюшевую Вету по очереди — тренируются к твоему приходу. ${P()} лёг ей в ноги. По привычке.`,
+    setup: W => {
+      W.pose('veta', { x: -0.05, z: -0.6, eyes: 'happy', arms: ['hug', 'hug'] });
+      W.pose('manya', { x: -0.78, z: -0.4, ry: 0.9, eyes: 'happy', arms: ['hug', 'hug'] });
+      W.pose('shket', { x: 0.62, z: -0.3, ry: -2.6, eyes: 'happy' });
+      W.pose('peng', { x: 0.95, z: 0.75, s: 0.62, lie: 'side', eyes: 'happy' });
+      W.P.hearts([[-0.3, 2.0, -0.4], [0.35, 1.8, -0.3]]);
+    },
+  },
+  {
+    id: 'manyaGamer', title: 'Маня-геймер', rarity: 'common',
+    when: () => true,
+    text: c => `Маня заняла твоё место и играет в приставку. Говорит, проходит уровень за тебя. Шкет болеет, а ${P()} ждёт свою очередь уже второй час.`,
+    setup: W => {
+      W.P.pillow(-0.35, W.TOP + 0.06, -0.2, 0.6, 0.15, 0.5, '#f1ede4');
+      W.pose('manya', { x: -0.35, z: -0.25, y: W.TOP + 0.14, ry: 0.2, eyes: 'open', arms: ['hold', 'hold'] });
+      W.P.gamepad(-0.3, W.TOP + 0.75, 0.12, 0.2, 0.9);
+      W.pose('shket', { x: 0.45, z: 0.35, ry: -2.2, eyes: 'happy', anim: 'wiggle' });
+      W.pose('peng', { x: 1.2, z: -0.3, ry: -0.6, eyes: 'grumpy', flips: ['down', 'down'] });
     },
   },
   /* тёплая ветка Пингвина: Вете его жалко — «они всё время вдвоём, а он уходит» */
@@ -435,21 +473,25 @@ function hideSetup(spot) {
     W.pose('shket', Object.assign({ eyes: 'happy' }, HIDE_SPOTS[spot].shket));
   };
 }
-/* ---------- уложить спать: как у Веты — Маня и Шкет у подушки, Пингвин в ногах ---------- */
+/* ---------- уложить спать: как у Веты — она посередине, Маня и Шкет у подушки, Пингвин в ногах ---------- */
 function sleepSetup(W) {
   W.sky({ tod: 'night' });
-  W.pose('manya', { x: -0.95, z: -0.75, ry: 0.25, eyes: 'closed', arms: ['hug', 'hug'], anim: 'sleep' });
-  W.pose('shket', { x: -0.15, z: -0.7, ry: -1.4, s: 0.8, eyes: 'closed', anim: 'sleep' });
+  W.pose('veta', { x: 0, z: -0.05, lie: 'back', tilt: 0.3, eyes: 'closed', anim: 'sleep' });
+  W.pose('manya', { x: -0.95, z: -0.75, ry: 0.5, eyes: 'closed', arms: ['hug', 'hug'], anim: 'sleep' });
+  W.pose('shket', { x: 0.8, z: -0.7, ry: -2.2, s: 0.8, eyes: 'closed', anim: 'sleep' });
   W.P.blanket();
-  W.pose('peng', { x: 1.35, z: 0.95, s: 0.62, lie: 'side', eyes: 'closed', anim: 'sleep' });
-  W.P.zzz(-0.75, 1.75, -0.6); W.P.zzz(0.05, 1.2, -0.6); W.P.zzz(0.75, 0.75, 0.95);
+  W.pose('peng', { x: 0.3, z: 1.0, s: 0.62, lie: 'side', eyes: 'closed', anim: 'sleep' });
+  W.P.zzz(-0.75, 1.75, -0.6); W.P.zzz(0.15, 1.45, -0.7); W.P.zzz(0.75, 0.75, 1.0);
 }
-/* утро после сна: все раскиданы — Шкет звёздочкой пузом кверху, Пингвин на полу у кровати.
-   c.fixed — кого уже поправили кнопками («Перевернуть Шкета», «Поднять Пингвина») */
+/* утро после сна: Вета потягивается, кудри растрёпаны; все раскиданы — Шкет звёздочкой пузом кверху,
+   Пингвин на полу у кровати. c.fixed — кого уже поправили кнопками («Перевернуть Шкета», «Поднять Пингвина») */
 function morningSetup(W, c) {
   const fixed = (c && c.fixed) || {};
+  const done = fixed.shket && fixed.peng;
   W.sky({ tod: 'morning' });
-  if (fixed.shket && fixed.peng) W.pose('manya', { eyes: 'happy' });
+  W.pose('veta', done ? { x: -0.1, z: -0.7, hair: 'curly', eyes: 'happy', arms: ['wave', 'down'] }
+    : { x: -0.1, z: -0.7, hair: 'curly', eyes: 'closed', arms: ['up', 'up'] });
+  if (done) W.pose('manya', { eyes: 'happy' });
   else W.pose('manya', { x: -0.75, z: -0.75, y: W.TOP + 0.02, s: 0.85, lie: 'side', eyes: 'closed', anim: 'sleep' });
   if (fixed.shket) W.pose('shket', { ry: -1.4, eyes: 'happy' });
   else W.pose('shket', { x: 0.35, z: 0.1, ry: 0.7, s: 0.8, lie: 'star', eyes: 'closed', anim: 'sleep' });
@@ -467,7 +509,7 @@ const ROOMS = [
   { id: 'pantry', name: 'Кладовая', ready: true, text: 'Кладовая. Тут стоит сундук: каждый день в нём что-то новое.' },
 ];
 const LAYOUT = {
-  bedroom: W => { W.pose('manya', {}); W.pose('shket', { ry: -1.4 }); W.pose('peng', {}); },
+  bedroom: W => { W.pose('veta', {}); W.pose('manya', {}); W.pose('shket', { ry: -1.4 }); W.pose('peng', {}); },
   kitchen: W => {
     W.pose('manya', { x: -0.95, z: -0.3, ry: 0.3 });
     W.pose('shket', { x: -0.1, z: -0.2, ry: -1.57 });
@@ -604,7 +646,15 @@ const HUG = {
   manya: ['Бе-е-е! Обнимашки!', 'Самые тёплые обнимашки — от {nick}.', 'Не отпускай, {nick}.'],
   peng: ['Ладно. Только никому не говори.', '…ещё секундочку.', 'Я не плачу. Это снег.', 'Вот теперь я не одиночка.', 'Так и быть, {nick}. Обнимай.'],
 };
-const PENG_FIRST_HUG = 'Меня… обняли? Меня?! Ладно. Это было неплохо.';
+/* плюшевая Вета: по тапу про неё говорят игрушки (за неё саму слов не придумываем) */
+const VETA_TALK = {
+  manya: ['Похожа, правда? Я делала волосы — каждую прядку!', 'Это ты! Только плюшевая. Как мы.', 'Мы её обнимаем, когда ты уходишь.'],
+  shket: ['Свитшот шил я. Котика на груди тоже я придумал.', 'Она мягкая. Почти как ты, {nick}.', 'Я сплю рядом с ней. Как с тобой.'],
+  peng: ['Колечко в нос делал я. Пришлось пожертвовать пуговицей.', 'Я лёг ей в ноги. По привычке. Не обсуждается.', 'Она меня ни разу не скинула с кровати. Пока.'],
+};
+const VETA_HUG = ['Обнимашки с Ветой! Все сюда!', 'Мы тоже тебя обнимаем, {nick}!', 'Вета в серединке — так правильно.'];
+const VETA_NO = { food: 'Это нам! А Вета поест что-нибудь вкусное на кухне.', wear: 'Вету не наряжаем — она и так самая красивая.' };
+const PENG_FIRST_HUG ='Меня… обняли? Меня?! Ладно. Это было неплохо.';
 /* Пингвин оттаивает: после нескольких обнимашек у него появляются тёплые реплики */
 const PENG_WARM = ['А обнимашки сегодня будут, {nick}?', 'Маня и Шкет позвали меня играть. Я, конечно, отказался. Сначала.',
   'Знаешь, быть подставкой для ног — это тоже быть рядом с тобой.', 'Я больше не одиночка. Но гордость при мне.', 'Я считаю обнимашки. Просто так, для статистики.'];
@@ -660,7 +710,7 @@ window.SCENES_API = {
   CONFIG, SCENES, byId: Object.fromEntries(SCENES.map(s => [s.id, s])),
   HIDE_SPOTS, hideSetup, sleepSetup, morningSetup, WHO, ROOMS, LAYOUT, KITCHEN_LOOK, ENTER, INGREDIENTS, RECIPES, COOK_LINES,
   bathSetup, hugSetup, ROOM_LINES, UNLOCKS,
-  TALK, HUNGRY, PET, HUG, PENG_FIRST_HUG, PENG_WARM, HELLO, FOODS, LIKES, FEED, WEAR, WEAR_LINES, UNDRESS, HIDE, SLEEPY, WAKE, STAR,
+  TALK, HUNGRY, PET, HUG, PENG_FIRST_HUG, PENG_WARM, VETA_TALK, VETA_HUG, VETA_NO, HELLO, FOODS, LIKES, FEED, WEAR, WEAR_LINES, UNDRESS, HIDE, SLEEPY, WAKE, STAR,
   plural, cap, pick, makeCtx, daysTogether, monthsTogether,
 };
 })();

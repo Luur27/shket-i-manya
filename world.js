@@ -139,6 +139,15 @@ function makeTextures() {
   TX.heart = canvasTex(64, 64, (g) => {
     g.fillStyle = '#ef5f6f'; g.beginPath(); g.moveTo(32, 56); g.bezierCurveTo(2, 34, 8, 6, 32, 20); g.bezierCurveTo(56, 6, 62, 34, 32, 56); g.fill();
   });
+  // пряди волос: на сфере вертикальные линии становятся прядями от макушки вниз
+  TX.hair = canvasTex(128, 128, (g, w) => {
+    g.fillStyle = '#808080'; g.fillRect(0, 0, w, w);
+    for (let i = 0; i < 260; i++) {
+      const v = 115 + rnd() * 75 | 0, x = rnd() * w;
+      g.strokeStyle = `rgb(${v},${v},${v})`; g.lineWidth = 0.8 + rnd() * 0.8;
+      g.beginPath(); g.moveTo(x, 0); g.bezierCurveTo(x + 6, w * 0.3, x - 6, w * 0.7, x, w); g.stroke();
+    }
+  }, [6, 2], false);
 }
 const SKY = { morning: ['#a8d5f0', '#ffe3bf', '#ffd09a'], day: ['#86c6ee', '#d8f1fc'], evening: ['#5e5c9e', '#e98e74', '#ffc98d'], night: ['#0f1434', '#2c3567'] };
 function skyTex(tod, snow) {
@@ -175,6 +184,7 @@ const DEF = {
   manya: { x: -0.98, z: -0.15, ry: 0.28, s: 0.92 },
   shket: { x: 0.02, z: 0.5, ry: -1.2, s: 0.86 },
   peng: { x: 1.05, z: -0.2, ry: -0.3, s: 0.86 },
+  veta: { x: -0.05, z: -0.8, ry: 0, s: 0.86 },
 };
 function brows(mat, parent, pts, rz) {
   return pts.map((p, i) => { const b = blob(mat, 0.07, 0.014, 0.02, p[0], p[1], p[2], parent); b.rotation.set(p[3] || 0, p[4] || 0, rz[i]); b.visible = false; return b; });
@@ -263,6 +273,84 @@ function makePenguin() {
   const tail = blob(scarf, 0.1, 0.18, 0.03, -0.27, 0.84, 0.42, g); tail.rotation.z = 0.4;
   h.anchor = { top: [0, 0.45, 0, 1.6], face: [0, 0.0, 0.47, 1.7], side: [0.3, 0.3, 0.22, 1.3], onhead: [0, 0.48, 0, 1.4] };
   h.halfW = 0.56; h.top = 1.89;
+  return h;
+}
+/* Вета — плюшевая, как её игрушки, ростом с Маню. По фото: длинные каштановые волосы с пробором посередине
+   и светлыми кончиками, стрелки на глазах, колечко в носу, чёрный оверсайз-свитшот со значком-котиком,
+   серые широкие джинсы, белые часы. Гостья: видна только там, где её поставила сцена */
+function makeVeta() {
+  const h = { id: 'veta', guest: true, place: new THREE.Group(), body: new THREE.Group() };
+  h.place.add(h.body);
+  const g = h.body;
+  const skin = plush('#f3d3bf', TX.plush, 0.88, '#ffe8da', 0.006); skin.sheen.multiplyScalar(0.5);
+  // нейтральный тёмно-каштановый без рыжины (тёплый свет комнаты и так добавляет тепла), кончики светлее
+  const hair = plush('#2e2620', TX.hair, 0.72, '#7d756d', 0.03);
+  const tips = plush('#6a5a4c', TX.hair, 0.72, '#a99d90', 0.03);
+  const sweat = plush('#2a2a30', TX.knit, 0.95, '#7a7a8c', 0.015);
+  const jeans = plush('#6d6f76', TX.plush, 0.95, '#b9bcc6', 0.02);
+  const white = plush('#f7f5f0', TX.plush, 0.85, '#ffffff', 0.01);
+  const silver = new THREE.MeshStandardMaterial({ color: C('#dfe3ea'), metalness: 1, roughness: 0.25, envMapIntensity: 1.2 }); MATS.push(silver);
+  const ink = flat('#1b1414', 0.5), brow = flat('#4a2e20', 0.7), lips = flat('#c8706f', 0.6);
+  const blush = new THREE.MeshStandardMaterial({ color: C('#f2a9a2'), transparent: true, opacity: 0.4, roughness: 1 });
+  // свитшот оверсайз: широкий низ; значок-котик на груди
+  blob(sweat, 0.36, 0.42, 0.3, 0, 0.5, 0, g);
+  blob(sweat, 0.39, 0.13, 0.32, 0, 0.2, 0, g);
+  const pin = new THREE.Group(); pin.position.set(0.15, 0.7, 0.27); g.add(pin);
+  blob(white, 0.045, 0.04, 0.02, 0, 0, 0, pin);
+  for (const s of [-1, 1]) { const e = mesh(new THREE.ConeGeometry(0.018, 0.035, 8), white, pin, s * 0.028, 0.04, 0); e.rotation.z = -s * 0.3; }
+  h.legs = [-1, 1].map(s => { const l = limb(jeans, 0.12, 0.4, g, s * 0.15, 0.24, 0.05); blob(white, 0.11, 0.1, 0.14, 0, -0.45, 0.03, l); return l; });
+  h.arms = [-1, 1].map(s => { const a = limb(sweat, 0.1, 0.4, g, s * 0.34, 0.8, 0); blob(skin, 0.075, 0.08, 0.075, 0, -0.47, 0, a); return a; });
+  const watch = mesh(new THREE.TorusGeometry(0.07, 0.018, 8, 20), white, h.arms[0], 0, -0.43, 0); watch.rotation.x = Math.PI / 2;
+  mesh(new THREE.CylinderGeometry(0.08, 0.09, 0.14, 16), skin, g, 0, 0.94, 0);
+  const head = new THREE.Group(); head.position.set(0, 1.2, 0); g.add(head); h.head = head;
+  blob(skin, 0.4, 0.38, 0.37, 0, 0, 0, head);
+  // волосы без чёлки: макушка, пробор посередине и две пряди, уходящие от пробора к вискам;
+  // затылок, длинные волосы за спиной и плоские пряди по плечам на грудь, светлые кончики
+  // шапочка с линией волос аркой: у пробора высоко, к вискам ниже — волосы расходятся от пробора, без чёлки
+  const capGeo = new THREE.SphereGeometry(1, 48, 24, 0, Math.PI * 2, 0, 1.6), cp = capGeo.attributes.position, v = new THREE.Vector3();
+  for (let i = 0; i < cp.count; i++) {
+    v.fromBufferAttribute(cp, i);
+    const r = Math.hypot(v.x, v.z); if (r < 1e-4) continue;
+    const front = Math.max(0, v.z / r), maxT = 1.6 - 0.85 * Math.pow(front, 1.5);
+    if (Math.acos(Math.min(1, Math.max(-1, v.y))) > maxT) cp.setXYZ(i, Math.sin(maxT) * v.x / r, Math.cos(maxT), Math.sin(maxT) * v.z / r);
+  }
+  capGeo.computeVertexNormals();
+  const cap = mesh(capGeo, hair, head, 0, 0, -0.01); cap.scale.set(0.425, 0.415, 0.41);
+  const back = mesh(new THREE.SphereGeometry(1, 32, 16, Math.PI, Math.PI, 0, Math.PI), hair, head); back.scale.set(0.43, 0.42, 0.42);
+  blob(hair, 0.4, 0.5, 0.15, 0, -0.5, -0.22, head);
+  blob(tips, 0.36, 0.15, 0.13, 0, -0.98, -0.24, head);
+  for (const s of [-1, 1]) {
+    const up = blob(hair, 0.13, 0.36, 0.14, s * 0.355, -0.12, 0.04, head); up.rotation.z = s * 0.05;
+    const lo = blob(hair, 0.15, 0.3, 0.075, s * 0.29, -0.55, 0.21, head); lo.rotation.x = -0.2;
+    blob(tips, 0.13, 0.13, 0.07, s * 0.28, -0.84, 0.25, head);
+  }
+  const partG = new THREE.Group(); partG.rotation.y = Math.PI / 2; head.add(partG);
+  const part = mesh(new THREE.TorusGeometry(0.418, 0.006, 6, 24, 1.15), flat('#e6bfa8', 0.85), partG); part.rotation.z = Math.PI / 2 - 0.15; part.castShadow = false;
+  // утром волосы кудрявые и растрёпанные (поза hair: 'curly'): мелкие кудряшки по макушке и прядям
+  h.curls = new THREE.Group(); head.add(h.curls);
+  for (let i = 0; i < 56; i++) {
+    const side = i % 2 ? 1 : -1, t = rnd(), r = 0.045 + rnd() * 0.03;
+    const p = i < 20 ? [Math.cos((0.12 + t * 0.76) * Math.PI) * 0.43, 0.04 + Math.sin((0.12 + t * 0.76) * Math.PI) * 0.4, -0.04 - rnd() * 0.22]
+      : [side * (0.3 + rnd() * 0.13), 0.12 - t * 0.95, 0.02 + rnd() * 0.24];
+    blob(p[1] < -0.6 && rnd() < 0.5 ? tips : hair, r, r, r, p[0], p[1], p[2], h.curls);
+  }
+  // лицо: глаза со стрелками, брови, нос с колечком, улыбка, румянец
+  h.eyes = [-1, 1].map(s => {
+    const e = blob(shiny('#2b1a12'), 0.046, 0.056, 0.03, s * 0.135, 0, 0.345, head);
+    blob(glow('#ffffff'), 0.3, 0.28, 0.4, s * -0.3, 0.35, 0.8, e);
+    blob(ink, 1.15, 0.25, 0.5, 0, 0.8, 0.3, e);
+    seg(ink, [s * 0.17, 0.025, 0.335], [s * 0.215, 0.065, 0.31], 0.009, head);
+    const b = blob(brow, 0.065, 0.012, 0.015, s * 0.135, 0.115, 0.35, head); b.rotation.z = -s * 0.08;
+    return e;
+  });
+  h.brows = [];
+  // носик в тон коже (не светлее, иначе с колечком похоже на соску), колечко тонкое и маленькое
+  blob(flat('#ecc2ab', 0.8), 0.028, 0.022, 0.02, 0, -0.065, 0.37, head);
+  const ring = mesh(new THREE.TorusGeometry(0.013, 0.0035, 8, 20), silver, head, 0, -0.088, 0.378); ring.rotation.x = 0.5;
+  const mouth = mesh(new THREE.TorusGeometry(0.045, 0.007, 6, 16, Math.PI), lips, head, 0, -0.17, 0.335); mouth.rotation.set(-0.35, 0, Math.PI);
+  for (const s of [-1, 1]) { const c = blob(blush, 0.06, 0.03, 0.01, s * 0.2, -0.08, 0.32, head); c.rotation.y = s * 0.5; }
+  h.anchor = { top: [0, 0.43, 0, 1.3], face: [0, 0, 0.37, 1.25], side: [-0.36, 0.25, 0.1, 1.0], onhead: [0, 0.45, 0, 1.2] };
+  h.halfW = 0.42; h.top = 1.65;
   return h;
 }
 
@@ -379,6 +467,9 @@ function pose(id, o = {}) {
   if (d.lie === 'side') { h.place.rotation.z = d.lieDir || Math.PI / 2; h.place.position.y = (d.y != null ? d.y : TOP) + h.halfW * d.s; }
   // «звёздочкой»: на спине, пузом кверху, лапы в разные стороны — так Шкет приземляется, когда падает
   if (d.lie === 'star') { h.place.rotation.x = Math.PI; h.place.position.y = (d.y != null ? d.y : TOP) + (h.backH || h.halfW) * d.s; }
+  // на спине, полусидя на подушке (так спит Вета): голова к подушкам, лицо вверх; tilt — насколько приподнята
+  if (d.lie === 'back') { h.place.rotation.x = -(Math.PI / 2 - (d.tilt != null ? d.tilt : 0.5)); h.place.position.y = (d.y != null ? d.y : TOP) + 0.3 * d.s; }
+  if (h.curls) h.curls.visible = d.hair === 'curly';
   if (h.belly) h.belly.visible = d.lie === 'star';
   if (h.paws) h.paws.forEach(p => {
     const u = p.userData, star = d.lie === 'star';
@@ -390,7 +481,8 @@ function pose(id, o = {}) {
   h.blinks = ef >= 0.8;
   h.brows.forEach(b => { b.visible = d.eyes === 'grumpy'; });
   // ноги Мани: обычно вытянуты вперёд, в ванне — опущены вниз, чтобы не торчали сквозь стенку
-  if (h.legs) { const rx = d.legs === 'down' ? -0.3 : -1.35; h.legs[0].rotation.set(rx, 0, 0.08); h.legs[1].rotation.set(rx, 0, -0.08); }
+  // на спине — ноги вдоль тела, иначе при наклоне назад колени задираются вверх
+  if (h.legs) { const rx = d.legs === 'down' ? -0.3 : d.lie === 'back' ? -0.1 : -1.35; h.legs[0].rotation.set(rx, 0, 0.08); h.legs[1].rotation.set(rx, 0, -0.08); }
   if (h.arms) { const a = d.arms || ['down', 'down']; h.arms.forEach((p, i) => { const v = ARM[a[i]] || ARM.down, side = i ? 1 : -1; p.rotation.set(v[0], 0, side * v[1]); }); }
   if (h.flips) { const a = d.flips || ['down', 'down']; h.flips.forEach((p, i) => { const v = FLIP[a[i]] || FLIP.down, side = i ? 1 : -1; p.rotation.set(v[0], 0, side * v[1]); }); }
   (h.acc || []).forEach(x => { if (x.parent) x.parent.remove(x); dispose(x); });
@@ -632,6 +724,16 @@ const P = {
     return b;
   },
   pillow(x, y, z, sx, sy, sz, color = '#fbfaf6') { return add(blob(plush(color, TX.plush, 0.9, '#ffffff', 0.01), sx, sy, sz, x, y, z, new THREE.Group()).parent); },
+  /* геймпад: Маня играет в приставку (по фото) */
+  gamepad(x, y, z, ry = 0, rx = 0.5) {
+    const g = new THREE.Group(); g.position.set(x, y, z); g.rotation.set(rx, ry, 0);
+    const m = plush('#1d1d22', null, 0.45, '#5a5a66'), stick = flat('#3a3a44', 0.5);
+    blob(m, 0.15, 0.045, 0.08, 0, 0, 0, g);
+    for (const s of [-1, 1]) { const grip = blob(m, 0.06, 0.05, 0.09, s * 0.11, -0.01, 0.06, g); grip.rotation.y = s * 0.4; }
+    for (const s of [-1, 1]) blob(stick, 0.028, 0.02, 0.028, s * 0.05, 0.035, 0.02, g);
+    [['#e5484d', 0.1, -0.025], ['#7fc4ec', 0.125, 0], ['#7dbf63', 0.1, 0.025], ['#ffd36b', 0.075, 0]].forEach(([c, bx, bz]) => blob(flat(c, 0.4), 0.012, 0.01, 0.012, bx, 0.04, bz, g));
+    return add(g);
+  },
   lump(x, z, sx, sy, sz) {
     const m = mesh(new THREE.SphereGeometry(1, 40, 20, 0, Math.PI * 2, 0, Math.PI / 2), flat('#ffffff', 0.9, TX.duvet), null, x, TOP, z);
     m.scale.set(sx, sy, sz); return add(m);
@@ -1163,7 +1265,8 @@ function stage(setup, ctx, room = 'bedroom') {
   anims = [];
   skyOpt = {};
   aim = 0;
-  Object.keys(H3).forEach(id => pose(id, {}));
+  // гостья (Вета) видна, только если сцена её поставила
+  Object.keys(H3).forEach(id => { pose(id, {}); if (H3[id].guest) H3[id].place.visible = false; });
   if (setup) setup(API, ctx);
   pigeon.visible = !!skyOpt.pigeon;
   setTod(skyOpt.tod || ctx.tod, !!skyOpt.snow);
@@ -1340,7 +1443,7 @@ function init(container) {
   ROOMS.pantry = buildPantry();
   setRoom('bedroom');
   props = new THREE.Group(); scene.add(props);
-  [makeManya(), makeShket(), makePenguin()].forEach(h => {
+  [makeManya(), makeShket(), makePenguin(), makeVeta()].forEach(h => {
     H3[h.id] = h; scene.add(h.place);
     h.sq = 0; h.sqv = 0; h.hop = 0; h.nextBlink = 1 + Math.random() * 3; h.acc = [];
     h.place.traverse(o => { o.userData.hero = h.id; });

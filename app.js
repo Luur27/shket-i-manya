@@ -212,6 +212,7 @@ $('bar').addEventListener('click', e => {
 function pickScene(ctx) {
   if (ctx.first) return 'hello';
   if (state.walkOut) return 'back';          // кто-то ушёл гулять — в следующий раз он возвращается
+  if (!state.seen.vetaDoll) return 'vetaDoll';   // знакомство с плюшевой Ветой — в первый же заход
   const today = dayKey(ctx.now);
   const specials = S.SCENES.filter(s => s.rarity === 'special' && s.when(ctx));
   if (specials.length && state.specialDay !== today) { state.specialDay = today; return specials[0].id; }
@@ -297,7 +298,15 @@ function greet(pool) {
     say(S.pick(['shket', 'manya', 'peng']), fill(S.pick(pool)));
   }, 1100);
 }
+const TOYS = ['manya', 'shket', 'peng'];
+/* за плюшевую Вету говорят игрушки — слов ей самой не придумываем */
+function talkVeta() {
+  WD.react('veta', 'squish');
+  const who = S.pick(TOYS);
+  say(who, mode === 'sleep' ? 'Тсс… Вета спит.' : fill(S.pick(S.VETA_TALK[who])));
+}
 function talk(id) {
+  if (id === 'veta') return talkVeta();
   if (mode === 'sleep') { WD.react(id, 'squish'); say(id, fill(S.pick(S.SLEEPY))); return; }
   const hungry = !state.fed[id] || Date.now() - state.fed[id] > HUNGRY_MS;
   let pool = hungry && Math.random() < 0.3 ? S.HUNGRY[id] : S.TALK[id];
@@ -308,6 +317,10 @@ function talk(id) {
 /* обнимашки: долго держать палец на герое. Пингвину нужнее всех — объятия считаются, и он оттаивает */
 function hug(id) {
   WD.react(id, 'squish'); burst(id, 6);
+  if (id === 'veta') {
+    if (mode !== 'sleep') TOYS.forEach((t, i) => setTimeout(() => WD.react(t, 'hop'), 150 + i * 150));
+    return say(S.pick(TOYS), mode === 'sleep' ? 'Тсс… Вета спит.' : fill(S.pick(S.VETA_HUG)));
+  }
   if (mode === 'sleep') return say(id, fill(S.pick(S.SLEEPY)));
   if (id === 'peng') {
     state.pengHugs = (state.pengHugs || 0) + 1; save();
@@ -349,7 +362,8 @@ stage.addEventListener('pointermove', e => {
   if (!touch.done && touch.dist > 260) {
     touch.done = true;
     WD.react(touch.id, 'squish');
-    say(touch.id, fill(S.pick(mode === 'sleep' ? S.SLEEPY : S.PET[touch.id])));
+    if (touch.id === 'veta') talkVeta();
+    else say(touch.id, fill(S.pick(mode === 'sleep' ? S.SLEEPY : S.PET[touch.id])));
     burst(touch.id, 4);
   }
 });
@@ -475,7 +489,8 @@ items.addEventListener('click', e => {
 });
 
 function use(heroId, it) {
-  if (it.tray === 'wear') wear(heroId, it.id); else feed(heroId, it.id);
+  if (heroId === 'veta') say(S.pick(TOYS), S.VETA_NO[it.tray === 'wear' ? 'wear' : 'food']);
+  else if (it.tray === 'wear') wear(heroId, it.id); else feed(heroId, it.id);
   setPicked(null);
 }
 function feed(id, food) {
@@ -855,7 +870,7 @@ function toggleSleep() {
   room = 'bedroom'; mode = 'sleep'; game = null;
   setChrome('night');
   WD.stage(S.sleepSetup, ctxNow({}), 'bedroom');
-  setCaption('Спокойной ночи', 'Тсс… Все легли: Маня и Шкет у подушки, Пингвин в ногах — как всегда. Посмотрим, долежит ли он до утра.');
+  setCaption('Спокойной ночи', 'Тсс… Вета уснула: Маня и Шкет у подушки, Пингвин в ногах — как всегда. Посмотрим, долежит ли он до утра.');
   renderBar();
 }
 /* утро: Шкет звёздочкой пузом кверху, Пингвин на полу; morning — кого уже поправили */
@@ -867,7 +882,7 @@ function wakeUp() {
   mode = 'morning'; morning = {};
   setChrome('morning');
   WD.stage(S.morningSetup, ctxNow({ fixed: morning }), 'bedroom');
-  setCaption('Доброе утро', 'Утро! Маня сползла с подушки, Шкет — опять звёздочкой пузом кверху, а Пингвин… на полу. Как он туда попадает — загадка.', { buttons: morningButtons() });
+  setCaption('Доброе утро', 'Утро! Вета потягивается, кудри во все стороны. Маня сползла с подушки, Шкет — опять звёздочкой пузом кверху, а Пингвин… на полу. Как он туда попадает — загадка.', { buttons: morningButtons() });
   renderBar();
   setTimeout(() => { if (mode === 'morning' && !morning.peng) say('peng', 'Я… я сам слез. Мне тут удобно.'); }, 1200);
 }
