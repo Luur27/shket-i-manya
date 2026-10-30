@@ -16,10 +16,24 @@ if (q.has('reset')) try { localStorage.removeItem(KEY); } catch (e) { /* нет 
 /* ---------- состояние ---------- */
 function load() { try { return JSON.parse(localStorage.getItem(KEY)); } catch (e) { return null; } }
 function save() { try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) { /* приватный режим */ } }
-const state = Object.assign({
+function newState() { return {
   first: Date.now(), last: 0, visits: 0, seen: {}, cur: null, fed: {}, fresh: [], specialDay: '', install: false,
   outfit: {}, hideBest: 0, cooked: {}, plants: [0, 0, 0], plantDay: '', unlocked: [], boxDay: '', clean: {}, photos: 0,
-}, load() || {});
+}; }
+const state = Object.assign(newState(), load() || {});
+
+/* Сохранения переносятся между адресами через файл, без отправки на сервер.
+   При восстановлении меняем также объект state: обработчик pagehide не должен записать старый прогресс. */
+window.GAME_SAVES.init({
+  getState: () => state,
+  restore(data) {
+    const restored = Object.assign(newState(), data);
+    localStorage.setItem(KEY, JSON.stringify(restored));
+    Object.keys(state).forEach(key => { delete state[key]; });
+    Object.assign(state, restored);
+    location.replace(location.origin + location.pathname);
+  },
+});
 
 function now() {
   if (q.get('date')) {

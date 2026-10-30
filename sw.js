@@ -1,7 +1,7 @@
 // Офлайн: свои файлы — сначала из сети (чтобы обновления приходили сразу), без сети — из кэша.
 // three.js и шрифты Google — из кэша, если уже скачаны.
-const CACHE = 'shket-manya-v3';
-const SHELL = ['./', 'index.html', 'app.css', 'world.js', 'scenes.js', 'app.js', 'manifest.webmanifest', 'icons/icon-180.png', 'icons/icon-192.png', 'icons/icon-512.png'];
+const CACHE = 'shket-manya-v4';
+const SHELL = ['./', 'index.html', 'app.css', 'world.js', 'scenes.js', 'saves.js', 'app.js', 'manifest.webmanifest', 'icons/icon-180.png', 'icons/icon-192.png', 'icons/icon-512.png'];
 const CDN = ['cdnjs.cloudflare.com', 'fonts.googleapis.com', 'fonts.gstatic.com'];
 
 self.addEventListener('install', e => {

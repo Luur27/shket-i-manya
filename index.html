@@ -66,6 +66,16 @@
       </div>
       <button class="ghost-btn" id="albumClose" type="button">Закрыть</button>
     </div>
+    <details class="save-panel">
+      <summary>Сохранить или перенести прогресс</summary>
+      <p>В файле будут альбом, наряды, цветы и достижения. На iPhone выбери «Сохранить в Файлы». На другом адресе или устройстве загрузи этот файл.</p>
+      <div class="save-actions">
+        <button class="pill" id="saveExport" type="button">Сохранить в файл</button>
+        <button class="pill" id="saveImport" type="button">Загрузить из файла</button>
+      </div>
+      <input id="saveFile" type="file" accept=".json,application/json" hidden>
+      <p id="saveStatus" role="status" aria-live="polite"></p>
+    </details>
     <div id="albumBody"></div>
   </div>
 </div>
@@ -112,6 +122,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="world.js"></script>
 <script src="scenes.js"></script>
+<script src="saves.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

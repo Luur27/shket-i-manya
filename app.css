@@ -275,6 +275,12 @@ button { font: inherit; color: inherit; }
 .sheet-head { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
 .sheet-head h2 { flex: 1; margin: 0; font: 400 26px/1.1 var(--font-hand); }
 .sheet-head p { margin: 2px 0 0; font-size: 13px; color: var(--muted); }
+.save-panel { margin: 0 0 16px; padding: 12px; border: 1.5px solid var(--line); border-radius: 14px; background: var(--paper); }
+.save-panel summary { cursor: pointer; font-size: 14px; font-weight: 600; }
+.save-panel p { font-size: 13px; line-height: 1.5; color: var(--muted); }
+.save-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.save-actions .pill { flex: 1; font-size: 13px; min-width: 140px; }
+#saveStatus:empty { display: none; }
 .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .card {
   display: grid; gap: 6px;
