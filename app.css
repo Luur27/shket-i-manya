@@ -281,6 +281,18 @@ button { font: inherit; color: inherit; }
 .save-actions { display: flex; flex-wrap: wrap; gap: 8px; }
 .save-actions .pill { flex: 1; font-size: 13px; min-width: 140px; }
 #saveStatus:empty { display: none; }
+.cinema-sheet { z-index: 60; background: #211d2b; color: #fff6e9; }
+.cinema-sheet .sheet-inner { max-width: 900px; padding-top: 24px; }
+.cinema-sheet .sheet-head { justify-content: space-between; align-items: flex-start; }
+.cinema-sheet .sheet-head h2 { margin-top: 8px; font-size: 32px; }
+.cinema-sheet .ghost-btn { color: #edc9a2; }
+.cinema-sheet video { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: contain; border-radius: 16px; background: #100e15; }
+.film-intro { font: 400 20px/1.4 var(--font-hand); margin: 20px 0; }
+.film-actions { display: grid; gap: 10px; margin-top: 20px; }
+.film-hint, #filmStatus { font-size: 14px; line-height: 1.5; }
+.film-hint { color: #d1becf; }
+.film-credits { margin-top: 32px; color: #ae9eae; font-size: 11px; line-height: 1.5; }
+.detail.film-detail .thumb, .card.film-card .thumb { aspect-ratio: 16 / 9; }
 .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .card {
   display: grid; gap: 6px;

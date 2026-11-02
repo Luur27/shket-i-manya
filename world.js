@@ -1347,8 +1347,9 @@ function restoreSize() { renderer.setSize(W, H); camera.aspect = W / H; fit(came
 
 /* ---------- жизнь ---------- */
 const frameCbs = [];
-let clock, t = 0, dragging = false;
+let clock, t = 0, dragging = false, paused = false;
 function tick() {
+  if (paused) { clock.getDelta(); requestAnimationFrame(tick); return; }
   const dt = Math.min(clock.getDelta(), 0.05); t += dt;
   if (!dragging) { az += azV * dt * 0.01; azV *= Math.exp(-dt * 5); az *= Math.exp(-dt * 0.5); }
   aimNow += (aim - aimNow) * (1 - Math.exp(-dt * 3)); target.y = baseTy + aimNow;
@@ -1469,6 +1470,7 @@ window.WORLD = {
   heroWorld(id) { return H3[id].place.position.clone(); },
   orbit(dx) { az = Math.max(-0.5, Math.min(0.5, az - dx * 0.005)); azV = -dx * 0.3; },
   setDragging(v) { dragging = v; },
+  setPaused(v) { paused = !!v; },
   canvas() { return renderer.domElement; },
 };
 })();

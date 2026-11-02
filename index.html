@@ -107,6 +107,24 @@
   </div>
 </div>
 
+<div class="sheet cinema-sheet" id="cinema" role="dialog" aria-modal="true" aria-labelledby="filmTitle" hidden>
+  <div class="sheet-inner">
+    <div class="sheet-head">
+      <div><p>Наш маленький кинотеатр</p><h2 id="filmTitle">Пингвин тоже свой</h2></div>
+      <button class="ghost-btn" id="filmClose" type="button">Закрыть</button>
+    </div>
+    <p class="film-intro">Вета, этот мультик для тебя. Сегодня Пингвин — главный герой.</p>
+    <video id="filmVideo" controls playsinline webkit-playsinline preload="none" aria-label="Мультфильм про Пингвина"></video>
+    <div class="film-actions">
+      <button class="pill wide" id="filmPlay" type="button">Смотреть со звуком</button>
+      <button class="ghost-btn" id="filmOffline" type="button">Сохранить мультик офлайн</button>
+    </div>
+    <p id="filmStatus" role="status" aria-live="polite">40 секунд про тех, кого любят.</p>
+    <p class="film-hint">Мультик останется в альбоме — можно пересматривать сколько угодно.</p>
+    <p class="film-credits">Музыка: Secret Garden — Eugenio Mininni. Звуковые эффекты: Mixkit.</p>
+  </div>
+</div>
+
 <div class="install" id="install" hidden>
   <h2>Поставь нас на экран «Домой»</h2>
   <ol>
@@ -123,6 +141,7 @@
 <script src="world.js"></script>
 <script src="scenes.js"></script>
 <script src="saves.js"></script>
+<script src="cinema.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
