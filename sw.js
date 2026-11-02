@@ -1,12 +1,12 @@
 // Офлайн: свои файлы — сначала из сети (чтобы обновления приходили сразу), без сети — из кэша.
 // three.js и шрифты Google — из кэша, если уже скачаны.
-const CACHE = 'shket-manya-v7', MEDIA_CACHE = 'shket-manya-media-v1';
+const CACHE = 'shket-manya-v8', MEDIA_CACHE = 'shket-manya-media-v1';
 const SHELL = ['./', 'index.html', 'app.css', 'world.js', 'scenes.js', 'saves.js', 'cinema.js', 'app.js', 'media/penguin-film-v1.jpg', 'media/veta-film-v2.jpg', 'media/CREDITS.txt', 'manifest.webmanifest', 'icons/icon-180.png', 'icons/icon-192.png', 'icons/icon-512.png'];
-const FILM_PATHS = ['media/penguin-film-v1.mp4', 'media/veta-film-v2.mp4'].map(path => new URL(path, self.registration.scope).pathname);
+const FILM_PATHS = ['media/penguin-film-v1.mp4', 'media/veta-film-v2.mp4', 'media/veta-film-v3.mp4'].map(path => new URL(path, self.registration.scope).pathname);
 const CDN = ['cdnjs.cloudflare.com', 'fonts.googleapis.com', 'fonts.gstatic.com'];
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL.map(url => new Request(url, { cache: 'reload' })))).then(() => self.skipWaiting()));
 });
 self.addEventListener('activate', e => {
   e.waitUntil(caches.keys().then(keys => Promise.all(keys.filter(k => k.startsWith('shket-manya-') && k !== CACHE && k !== MEDIA_CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim()));
@@ -32,16 +32,9 @@ async function mediaResponse(req) {
   const cache = await caches.open(MEDIA_CACHE), url = req.url;
   const stored = await cache.match(url);
   if (stored) return req.headers.has('range') ? mediaRange(stored, req.headers.get('range')) : stored;
-  try {
-    const response = await fetch(req);
-    if (!req.headers.has('range') && response.status === 200) {
-      const data = await response.arrayBuffer();
-      const full = new Response(data, { headers: { 'Content-Type': 'video/mp4', 'Content-Length': String(data.byteLength), 'Accept-Ranges': 'bytes' } });
-      try { await cache.put(url, full.clone()); } catch (e) { /* онлайн-просмотр доступен и без места для копии */ }
-      return full;
-    }
-    return response;
-  } catch (e) { return new Response('Video is not saved offline', { status: 503, headers: { 'Content-Type': 'text/plain' } }); }
+  // Онлайн отдаём поток сразу; полную офлайн-копию сохраняет кнопка плеера.
+  try { return await fetch(req); }
+  catch (e) { return new Response('Video is not saved offline', { status: 503, headers: { 'Content-Type': 'text/plain' } }); }
 }
 self.addEventListener('fetch', e => {
   const req = e.request;
@@ -52,7 +45,7 @@ self.addEventListener('fetch', e => {
   }
   if (url.origin === self.location.origin) {
     e.respondWith(
-      fetch(req).then(res => {
+      fetch(req, { cache: 'no-cache' }).then(res => {
         if (res.ok) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(req, copy)); }
         return res;
       }).catch(() => caches.match(req).then(r => r || caches.match('index.html')))

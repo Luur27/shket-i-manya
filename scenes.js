@@ -55,7 +55,7 @@ const FILMS = {
   },
   vetaFilmV2: {
     id: 'vetaFilmV2', title: 'Как мы сшили Вету',
-    src: 'media/veta-film-v2.mp4', poster: 'media/veta-film-v2.jpg',
+    src: 'media/veta-film-v3.mp4', poster: 'media/veta-film-v2.jpg',
     intro: 'Мы захотели, чтобы ты всегда была рядом. И сшили свою маленькую Вету.',
     endText: 'Теперь нас четверо. А любим тебя мы всё так же втроём.',
     credits: 'Музыка: Carefree — Kevin MacLeod. Звуковые эффекты: Mixkit.',

@@ -1053,6 +1053,6 @@ Promise.race([fontReady, new Promise(r => setTimeout(r, 1500))]).then(() => {
 });
 
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
-  navigator.serviceWorker.register('sw.js').catch(() => { /* без офлайна тоже работает */ });
+  navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).catch(() => { /* без офлайна тоже работает */ });
 }
 })();

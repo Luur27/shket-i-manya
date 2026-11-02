@@ -1,6 +1,7 @@
 /* Просмотр готового мультфильма. Звук запускается только действием зрителя. */
 (function () {
 'use strict';
+const MEDIA_CACHE = 'shket-manya-media-v1';
 function init(initialFilm, onCover) {
   const $ = id => document.getElementById(id);
   const sheet = $('cinema'), video = $('filmVideo'), play = $('filmPlay'), offline = $('filmOffline'), status = $('filmStatus');
@@ -8,7 +9,7 @@ function init(initialFilm, onCover) {
   function fullURL() { return new URL(film.src, location.href).href; }
   async function cached(url) {
     if (!('caches' in window)) return false;
-    try { return !!(await (await caches.open('shket-manya-media-v1')).match(url)); } catch (e) { return false; }
+    try { return !!(await (await caches.open(MEDIA_CACHE)).match(url)); } catch (e) { return false; }
   }
   function close() {
     video.pause(); sheet.hidden = true; onCover(false);
@@ -67,9 +68,11 @@ function init(initialFilm, onCover) {
     const selectedID = film.id, selectedURL = fullURL();
     offline.disabled = true; status.textContent = 'Сохраняем мультик на телефон…';
     try {
-      const response = await fetch(selectedURL);
-      if (!response.ok) throw new Error('download');
-      await response.arrayBuffer();
+      const response = await fetch(selectedURL, { cache: 'reload' });
+      if (response.status !== 200) throw new Error('download');
+      const data = await response.arrayBuffer();
+      const full = new Response(data, { headers: { 'Content-Type': 'video/mp4', 'Content-Length': String(data.byteLength), 'Accept-Ranges': 'bytes' } });
+      await (await caches.open(MEDIA_CACHE)).put(selectedURL, full);
       if (!(await cached(selectedURL))) throw new Error('cache');
       if (film.id !== selectedID || sheet.hidden) return;
       offline.textContent = 'Мультик доступен офлайн'; status.textContent = 'Готово! Можно смотреть без интернета.';
