@@ -111,7 +111,7 @@ function show(fade) {
   WD.stage(sc.setup, ctx, 'bedroom');
   if (fade) { stage.classList.remove('fade'); void stage.offsetWidth; stage.classList.add('fade'); }
   const note = sc.note ? sc.note(ctx) : '';
-  setCaption(state.cur.label, state.cur.variant && sc.resolved ? sc.resolved.text(ctx) : sc.text(ctx), { isNew: state.cur.isNew, note, sign: ctx.sign, buttons: S.FILMS[sc.id] ? [['film', 'Смотреть мультик']] : null });
+  setCaption(state.cur.label, state.cur.variant && sc.resolved ? sc.resolved.text(ctx) : sc.text(ctx), { isNew: state.cur.isNew, note, sign: ctx.sign, buttons: sc.id === S.FILM.id ? [['film', 'Смотреть мультик']] : null });
   const days = S.daysTogether(now());
   $('together').textContent = `вместе ${days} ${S.plural(days, ['день', 'дня', 'дней'])}`;
   renderBar();
@@ -245,8 +245,12 @@ function pickScene(ctx) {
 }
 function arrive() {
   if (cinema.isOpen()) return;
+  // После отзыва серии сохранённая текущая сцена может больше не входить в каталог.
+  if (state.cur && !S.byId[state.cur.id]) {
+    state.cur = Object.assign({}, state.cur, { id: 'cuddle', label: 'Мы дома', variant: '', isNew: false });
+    save();
+  }
   const t = Date.now();
-  Object.keys(S.FILMS).forEach(id => { if (id !== S.FILM.id && !state.seen[id]) state.seen[id] = t; });
   const away = q.has('away') ? Number(q.get('away')) * 3600e3 : (state.last ? t - state.last : 0);
   const forced = q.get('scene');
   if (forced && S.byId[forced]) {
@@ -861,7 +865,7 @@ $('gameBtns').addEventListener('click', e => {
   const b = e.target.closest('[data-act]');
   if (!b) return;
   const act = b.dataset.act;
-  if (act === 'film') return openFilm(state.cur.id);
+  if (act === 'film') return openFilm();
   if (mode === 'morning' && act === 'lift') return fixMorning('peng');
   if (mode === 'morning' && act === 'flip') return fixMorning('shket');
   if (mode === 'hide') {
@@ -926,8 +930,8 @@ function fixMorning(id) {
 /* ---------- альбом: снимки сцен делает 3D-мир ---------- */
 const album = $('album'), albumBody = $('albumBody');
 const RAR = { common: '', rare: '<span class="rar rare">редкая</span>', special: '<span class="rar special">особая</span>' };
-const thumbs = Object.fromEntries(Object.values(S.FILMS).map(f => [f.id, f.poster]));
-function openFilm(id = S.FILM.id) { const film = S.FILMS[id]; if (!film) return; album.hidden = true; finishSnaps(); cinema.open(film); }
+const thumbs = { [S.FILM.id]: S.FILM.poster };
+function openFilm() { album.hidden = true; finishSnaps(); cinema.open(); }
 function seenMap() {
   if (q.has('all')) return Object.fromEntries(S.SCENES.map(s => [s.id, state.first]));
   return state.seen;
@@ -951,7 +955,7 @@ function renderGrid() {
   albumBody.innerHTML = `<div class="grid">${S.SCENES.map(s => {
     if (!seen[s.id]) return `<div class="card locked"><div class="thumb">?</div><h3>Пока секрет</h3><p>${RAR[s.rarity]} ${s.hint || 'выпадет само'}</p></div>`;
     const d = new Date(seen[s.id]);
-    return `<button class="card${S.FILMS[s.id] ? ' film-card' : ''}" type="button" data-scene="${s.id}"><div class="thumb">${thumbs[s.id] ? `<img src="${thumbs[s.id]}" alt="">` : ''}</div><h3>${s.title}</h3><p>${RAR[s.rarity]} ${d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}</p></button>`;
+    return `<button class="card${s.id === S.FILM.id ? ' film-card' : ''}" type="button" data-scene="${s.id}"><div class="thumb">${thumbs[s.id] ? `<img src="${thumbs[s.id]}" alt="">` : ''}</div><h3>${s.title}</h3><p>${RAR[s.rarity]} ${d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long' })}</p></button>`;
   }).join('')}</div>`;
   album.scrollTop = 0;
   // снимки по одному за кадр, чтобы телефон не подвисал (на кухне в это время ничего не готовится — альбом её перекрывает)
@@ -982,8 +986,8 @@ function renderDetail(id) {
   $('albumTitle').textContent = s.title;
   $('albumCount').textContent = new Date(seen[id]).toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
   $('albumClose').textContent = 'Назад';
-  const isFilm = !!S.FILMS[id];
-  albumBody.innerHTML = `<div class="detail${isFilm ? ' film-detail' : ''}"><div class="thumb">${thumbs[id] ? `<img src="${thumbs[id]}" alt="${s.title}">` : ''}</div><p class="story">${s.text(ctx)}</p>${isFilm ? `<button class="pill wide" type="button" data-film="${id}">Смотреть мультик</button>` : ''}</div>`;
+  const isFilm = id === S.FILM.id;
+  albumBody.innerHTML = `<div class="detail${isFilm ? ' film-detail' : ''}"><div class="thumb">${thumbs[id] ? `<img src="${thumbs[id]}" alt="${s.title}">` : ''}</div><p class="story">${s.text(ctx)}</p>${isFilm ? '<button class="pill wide" type="button" data-film>Смотреть мультик</button>' : ''}</div>`;
   album.scrollTop = 0;
 }
 let detailOpen = false;
@@ -996,8 +1000,7 @@ $('btnAlbum').addEventListener('click', () => {
   renderGrid();
 });
 albumBody.addEventListener('click', e => {
-  const movieButton = e.target.closest('[data-film]');
-  if (movieButton) return openFilm(movieButton.dataset.film);
+  if (e.target.closest('[data-film]')) return openFilm();
   const c = e.target.closest('[data-scene]');
   if (!c) return;
   detailOpen = true;
