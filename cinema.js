@@ -1,40 +1,46 @@
 /* Просмотр готового мультфильма. Звук запускается только действием зрителя. */
 (function () {
 'use strict';
-function init(film, onCover) {
+function init(initialFilm, onCover) {
   const $ = id => document.getElementById(id);
   const sheet = $('cinema'), video = $('filmVideo'), play = $('filmPlay'), offline = $('filmOffline'), status = $('filmStatus');
-  let previousFocus = null, failed = false;
-  $('filmTitle').textContent = film.title;
-  video.poster = film.poster;
+  let film = initialFilm, previousFocus = null, failed = false;
   function fullURL() { return new URL(film.src, location.href).href; }
-  async function cached() {
+  async function cached(url) {
     if (!('caches' in window)) return false;
-    try { return !!(await caches.match(fullURL())); } catch (e) { return false; }
+    try { return !!(await (await caches.open('shket-manya-media-v1')).match(url)); } catch (e) { return false; }
   }
   function close() {
     video.pause(); sheet.hidden = true; onCover(false);
     if (previousFocus && previousFocus.isConnected) previousFocus.focus();
   }
-  function open() {
-    if (!sheet.hidden) return;
+  function open(nextFilm = film) {
+    if (!sheet.hidden && nextFilm.id === film.id) return;
+    const changed = film.id !== nextFilm.id;
+    video.pause(); film = nextFilm;
     previousFocus = document.activeElement; sheet.hidden = false;
     onCover(true);
-    if (!video.getAttribute('src')) video.src = film.src;
+    $('filmTitle').textContent = film.title;
+    video.setAttribute('aria-label', film.title);
+    $('filmIntro').textContent = film.intro;
+    video.poster = film.poster;
+    if (changed || !video.getAttribute('src')) { video.src = film.src; video.load(); }
     failed = !!video.error; play.hidden = false;
     play.textContent = video.currentTime > 0 && !video.ended ? 'Продолжить' : 'Смотреть со звуком';
     status.textContent = 'Нажми «Смотреть» — и включи звук, чтобы услышать героев.';
     $('filmClose').focus();
-    cached().then(ok => { offline.disabled = ok; offline.textContent = ok ? 'Мультик доступен офлайн' : 'Сохранить мультик офлайн'; });
+    const selectedID = film.id, selectedURL = fullURL();
+    cached(selectedURL).then(ok => { if (film.id !== selectedID || sheet.hidden) return; offline.disabled = ok; offline.textContent = ok ? 'Мультик доступен офлайн' : 'Сохранить мультик офлайн'; });
   }
   play.addEventListener('click', async () => {
+    const selectedID = film.id;
     try {
       if (video.ended) video.currentTime = 0;
       if (failed || video.error) { video.load(); failed = false; }
       video.muted = false;
       await video.play();
     } catch (e) {
-      if (sheet.hidden) return;
+      if (sheet.hidden || film.id !== selectedID) return;
       status.textContent = e.name === 'NotAllowedError' ? 'Нажми кнопку воспроизведения прямо на видео.' : 'Не удалось запустить мультик. Проверь интернет и попробуй ещё раз.';
       play.hidden = false;
     }
@@ -44,7 +50,7 @@ function init(film, onCover) {
     if (sheet.hidden || video.ended) return;
     play.hidden = false; play.textContent = 'Продолжить';
   });
-  video.addEventListener('ended', () => { play.hidden = false; play.textContent = 'Посмотреть ещё раз'; status.textContent = 'Пингвин тоже свой. И очень любимый.'; });
+  video.addEventListener('ended', () => { play.hidden = false; play.textContent = 'Посмотреть ещё раз'; status.textContent = film.endText; });
   video.addEventListener('error', () => {
     if (sheet.hidden) return;
     failed = true; play.hidden = false; play.textContent = 'Попробовать ещё раз';
@@ -52,14 +58,16 @@ function init(film, onCover) {
   });
   offline.addEventListener('click', async () => {
     if (!navigator.serviceWorker || !navigator.serviceWorker.controller) { status.textContent = 'Для офлайн-копии закрой и снова открой обновлённое приложение с интернетом.'; return; }
+    const selectedID = film.id, selectedURL = fullURL();
     offline.disabled = true; status.textContent = 'Сохраняем мультик на телефон…';
     try {
-      const response = await fetch(fullURL());
+      const response = await fetch(selectedURL);
       if (!response.ok) throw new Error('download');
       await response.arrayBuffer();
-      if (!(await cached())) throw new Error('cache');
+      if (!(await cached(selectedURL))) throw new Error('cache');
+      if (film.id !== selectedID || sheet.hidden) return;
       offline.textContent = 'Мультик доступен офлайн'; status.textContent = 'Готово! Можно смотреть без интернета.';
-    } catch (e) { offline.disabled = false; status.textContent = 'Не получилось сохранить. Проверь интернет и свободное место, затем попробуй снова.'; }
+    } catch (e) { if (film.id !== selectedID || sheet.hidden) return; offline.disabled = false; status.textContent = 'Не получилось сохранить. Проверь интернет и свободное место, затем попробуй снова.'; }
   });
   $('filmClose').addEventListener('click', close);
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && !sheet.hidden) close(); });
