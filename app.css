@@ -292,6 +292,7 @@ button { font: inherit; color: inherit; }
 .film-hint, #filmStatus { font-size: 14px; line-height: 1.5; }
 .film-hint { color: #d1becf; }
 .film-credits { margin-top: 32px; color: #ae9eae; font-size: 11px; line-height: 1.5; }
+.film-credits a { color: inherit; }
 .detail.film-detail .thumb, .card.film-card .thumb { aspect-ratio: 16 / 9; }
 .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .card {

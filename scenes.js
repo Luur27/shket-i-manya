@@ -45,10 +45,28 @@ function makeCtx(o) {
 const P = () => CONFIG.penguin;
 const HR = 3600e3;
 const evening = c => c.tod === 'evening' || c.tod === 'night';
-const FILM = {
-  id: 'penguinFilmV1', title: 'Пингвин тоже свой',
-  src: 'media/penguin-film-v1.mp4', poster: 'media/penguin-film-v1.jpg',
+const FILMS = {
+  penguinFilmV1: {
+    id: 'penguinFilmV1', title: 'Пингвин тоже свой',
+    src: 'media/penguin-film-v1.mp4', poster: 'media/penguin-film-v1.jpg',
+    intro: 'Вета, этот мультик для тебя. Сегодня Пингвин — главный герой.',
+    endText: 'Пингвин тоже свой. И очень любимый.',
+    credits: 'Музыка: Secret Garden — Eugenio Mininni. Звуковые эффекты: Mixkit.',
+  },
+  vetaFilmV2: {
+    id: 'vetaFilmV2', title: 'Как мы сшили Вету',
+    src: 'media/veta-film-v2.mp4', poster: 'media/veta-film-v2.jpg',
+    intro: 'Мы захотели, чтобы ты всегда была рядом. И сшили свою маленькую Вету.',
+    endText: 'Теперь нас четверо. А любим тебя мы всё так же втроём.',
+    credits: 'Музыка: Carefree — Kevin MacLeod. Звуковые эффекты: Mixkit.',
+    creditLinks: [
+      { label: 'Оригинал музыки', href: 'https://incompetech.com/music/royalty-free/index.html?isrc=USUAN1400037' },
+      { label: 'CC BY 4.0', href: 'https://creativecommons.org/licenses/by/4.0/' },
+      { label: 'Авторы и обработка', href: 'media/CREDITS.txt' },
+    ],
+  },
 };
+const FILM = FILMS.vetaFilmV2;
 const months = n => `${n} ${plural(n, ['месяц', 'месяца', 'месяцев'])}`;
 const years = n => `${n} ${plural(n, ['год', 'года', 'лет'])}`;
 
@@ -60,18 +78,25 @@ const WHO = {
 };
 
 /* ---------- сцены ---------- */
+function cinemaSetup(W) {
+  W.pose('manya', { x: -0.95, z: -0.35, ry: 0.15, eyes: 'happy', arms: ['hug', 'hug'] });
+  W.pose('shket', { x: 0.05, z: -0.3, ry: -1.57, eyes: 'wide' });
+  W.pose('peng', { x: 1.0, z: -0.35, ry: -0.15, eyes: 'happy', flips: ['down', 'out'] });
+  W.P.laptopBack(0.05, 0.42, 0.85); W.P.popcorn(1.0, 0.5);
+  W.P.screenLight(0.05, W.TOP + 0.45, 0.4);
+}
 const SCENES = [
   {
-    id: FILM.id, title: FILM.title, rarity: 'common', hint: 'наш первый мультик',
+    id: FILMS.penguinFilmV1.id, title: FILMS.penguinFilmV1.title, rarity: 'common', hint: 'наш первый мультик',
     when: () => false,
     text: () => 'Вета, у нас премьера! Мы сняли маленький мультик про Пингвина. Садись поудобнее — сегодня он главный герой.',
-    setup: W => {
-      W.pose('manya', { x: -0.95, z: -0.35, ry: 0.15, eyes: 'happy', arms: ['hug', 'hug'] });
-      W.pose('shket', { x: 0.05, z: -0.3, ry: -1.57, eyes: 'wide' });
-      W.pose('peng', { x: 1.0, z: -0.35, ry: -0.15, eyes: 'happy', flips: ['down', 'out'] });
-      W.P.laptopBack(0.05, 0.42, 0.85); W.P.popcorn(1.0, 0.5);
-      W.P.screenLight(0.05, W.TOP + 0.45, 0.4);
-    },
+    setup: cinemaSetup,
+  },
+  {
+    id: FILMS.vetaFilmV2.id, title: FILMS.vetaFilmV2.title, rarity: 'common', hint: 'вторая серия нашего мультика',
+    when: () => false,
+    text: () => 'Маня взяла нитки, Шкет приготовил собачку на свитшот, а Пингвин вызвался делать самое маленькое колечко в мире. Смотри, как появилась твоя плюшевая двойняшка.',
+    setup: cinemaSetup,
   },
   {
     id: 'hello', title: 'Знакомство', rarity: 'common', hint: 'при первом заходе',
@@ -303,7 +328,7 @@ const SCENES = [
   },
   /* плюшевая Вета: игрушки сшили её сами — «чтобы ты была с нами, даже когда уходишь» */
   {
-    id: 'vetaDoll', title: 'Новенькая', rarity: 'common', hint: 'знакомство с плюшевой Ветой',
+    id: 'vetaDoll', title: 'Новенькая', rarity: 'common', hint: 'знакомство с плюшевой Ветой', film: 'vetaFilmV2',
     when: () => true,
     text: c => `Пока тебя не было, мы сшили… тебя! Маленькую плюшевую Вету — чтобы ты была с нами, даже когда уходишь. Маня делала волосы, Шкет — свитшот, а ${P()} — колечко в нос. Говорит, это было самое сложное.`,
     setup: W => {
@@ -723,7 +748,7 @@ const WAKE = ['Доброе утро, {nick}!', 'Уже утро? Ура, {nick}
 const STAR = ['Я не упал. Я загорал.', 'Это поза для звёзд. А я — звезда.', 'Мир перевернулся. А, нет, это я.', 'Я так и планировал. Честно.'];
 
 window.SCENES_API = {
-  CONFIG, FILM, SCENES, byId: Object.fromEntries(SCENES.map(s => [s.id, s])),
+  CONFIG, FILM, FILMS, SCENES, byId: Object.fromEntries(SCENES.map(s => [s.id, s])),
   HIDE_SPOTS, hideSetup, sleepSetup, morningSetup, WHO, ROOMS, LAYOUT, KITCHEN_LOOK, ENTER, INGREDIENTS, RECIPES, COOK_LINES,
   bathSetup, hugSetup, ROOM_LINES, UNLOCKS,
   TALK, HUNGRY, PET, HUG, PENG_FIRST_HUG, PENG_WARM, VETA_TALK, VETA_HUG, VETA_NO, HELLO, FOODS, LIKES, FEED, WEAR, WEAR_LINES, UNDRESS, HIDE, SLEEPY, WAKE, STAR,

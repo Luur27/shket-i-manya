@@ -1,7 +1,8 @@
 // Офлайн: свои файлы — сначала из сети (чтобы обновления приходили сразу), без сети — из кэша.
 // three.js и шрифты Google — из кэша, если уже скачаны.
-const CACHE = 'shket-manya-v5', MEDIA_CACHE = 'shket-manya-media-v1';
-const SHELL = ['./', 'index.html', 'app.css', 'world.js', 'scenes.js', 'saves.js', 'cinema.js', 'app.js', 'media/penguin-film-v1.jpg', 'manifest.webmanifest', 'icons/icon-180.png', 'icons/icon-192.png', 'icons/icon-512.png'];
+const CACHE = 'shket-manya-v7', MEDIA_CACHE = 'shket-manya-media-v1';
+const SHELL = ['./', 'index.html', 'app.css', 'world.js', 'scenes.js', 'saves.js', 'cinema.js', 'app.js', 'media/penguin-film-v1.jpg', 'media/veta-film-v2.jpg', 'media/CREDITS.txt', 'manifest.webmanifest', 'icons/icon-180.png', 'icons/icon-192.png', 'icons/icon-512.png'];
+const FILM_PATHS = ['media/penguin-film-v1.mp4', 'media/veta-film-v2.mp4'].map(path => new URL(path, self.registration.scope).pathname);
 const CDN = ['cdnjs.cloudflare.com', 'fonts.googleapis.com', 'fonts.gstatic.com'];
 
 self.addEventListener('install', e => {
@@ -46,7 +47,7 @@ self.addEventListener('fetch', e => {
   const req = e.request;
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
-  if (url.origin === self.location.origin && url.pathname === new URL('media/penguin-film-v1.mp4', self.registration.scope).pathname) {
+  if (url.origin === self.location.origin && FILM_PATHS.includes(url.pathname)) {
     e.respondWith(mediaResponse(req)); return;
   }
   if (url.origin === self.location.origin) {
