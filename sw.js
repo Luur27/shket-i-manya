@@ -1,6 +1,6 @@
 // Офлайн: свои файлы — сначала из сети (чтобы обновления приходили сразу), без сети — из кэша.
 // three.js и шрифты Google — из кэша, если уже скачаны.
-const CACHE = 'shket-manya-v9', MEDIA_CACHE = 'shket-manya-media-v1';
+const CACHE = 'shket-manya-v10', MEDIA_CACHE = 'shket-manya-media-v1';
 const SHELL = ['./', 'index.html', 'app.css', 'world.js', 'scenes.js', 'home-content.js', 'home.js', 'saves.js', 'cinema.js', 'app.js', 'media/penguin-film-v1.jpg', 'media/veta-film-v2.jpg', 'media/CREDITS.txt', 'manifest.webmanifest', 'icons/icon-180.png', 'icons/icon-192.png', 'icons/icon-512.png'];
 for(const id of ['shket','manya','peng','littleHike','woolSalon','pengCorner','pillowCouncil','socks','parcel'])SHELL.push('icons/day/'+id+'.jpg');
 const FILM_PATHS = ['media/penguin-film-v1.mp4', 'media/veta-film-v2.mp4', 'media/veta-film-v3.mp4'].map(path => new URL(path, self.registration.scope).pathname);

@@ -452,7 +452,7 @@ function heartSpecs(){
   const g=new THREE.Group(),rim=flat('#d7728c');
   for(const x of [-.088,.088]){
     const points=heartShape(1).getPoints(32);
-    const line=new THREE.CatmullRomCurve3(points.map(p=>new THREE.Vector3(p.x*.102,p.y*.102,0)),true);
+    const line=new THREE.CatmullRomCurve3(points.map(p=>new THREE.Vector3(p.x*.65,p.y*.65,0)),true);
     mesh(new THREE.TubeGeometry(line,36,.011,6,true),rim,g,x,0,0);
   }
   seg(rim,[-.027,0,0],[.027,0,0],.009,g);return g;

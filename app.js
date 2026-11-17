@@ -97,9 +97,6 @@ const day = HOME.init({
   cook: () => enterRoom('kitchen',startCook),
   snack: id => enterRoom('kitchen',()=>{openTray('food');setCaption('Перекус',`Выбери угощение и коснись игрушки. Угощаем ${NAME[id]}.`);}),
   bedtime: () => { if(mode==='sleep')wakeUp();else toggleSleep(); },
-  markSeen(id) {
-    if(!state.seen[id]){state.seen[id]=Date.now();state.fresh.push(id);save();updateBadge();}
-  }
 });
 function ctxNow(extra) {
   const d = now();
@@ -264,6 +261,8 @@ function pickScene(ctx) {
   if (specials.length && state.specialDay !== today) { state.specialDay = today; return specials[0].id; }
   const pool = S.SCENES.filter(s => s.rarity !== 'special' && s.id !== 'hello' && s.when(ctx) && !(state.cur && s.id === state.cur.id));
   if (!pool.length) return 'cuddle';
+  const surprises=pool.filter(s=>s.activity && !state.seen[s.id]);
+  if(surprises.length && (!state.firstHomeReturn || !S.byId[state.cur?.id]?.activity)) return S.pick(surprises).id;
   const w = pool.map(s => {
     let x = s.rarity === 'rare' ? 2 : 10;
     if (!state.seen[s.id]) x *= 2.2;
@@ -275,7 +274,7 @@ function pickScene(ctx) {
   return pool[pool.length - 1].id;
 }
 function arrive() {
-  if (cinema.isOpen() || day.active || !$('daySheet').hidden) return;
+  if (cinema.isOpen()) return;
   const selfServed=day.tidyAfterAbsence();
   // После отзыва серии сохранённая текущая сцена может больше не входить в каталог.
   if (state.cur && !S.byId[state.cur.id]) {
@@ -285,6 +284,10 @@ function arrive() {
   const t = Date.now();
   Object.keys(S.FILMS).forEach(id => { if (id !== S.FILM.id && !state.seen[id]) state.seen[id] = t; });
   const away = q.has('away') ? Number(q.get('away')) * 3600e3 : (state.last ? t - state.last : 0);
+  if(day.active || !$('daySheet').hidden){
+    if(away<=AWAY_MS)return;
+    day.cancel();
+  }
   const forced = q.get('scene');
   if (forced && S.byId[forced]) {
     state.cur = { id: forced, at: t, label: `Пока тебя не было · ${fmtAway(Math.max(away, 3 * 3600e3))}`, variant: q.get('variant') || '', isNew: false, seed: Math.random(), away };
@@ -301,6 +304,7 @@ function arrive() {
     const first = !state.cur;
     const ctx = ctxNow({ away, first });
     const id = premiere ? S.FILM.id : pickScene(ctx);
+    if(S.byId[id].activity)state.firstHomeReturn=true;
     const isNew = !state.seen[id];
     if (isNew) { state.seen[id] = t; state.fresh.push(id); }
     state.visits++;
@@ -1069,6 +1073,11 @@ function renderDetail(id) {
   $('albumClose').textContent = 'Назад';
   const isFilm = !!S.FILMS[id], linkedFilm = S.FILMS[s.film || id];
   albumBody.innerHTML = `<div class="detail${isFilm ? ' film-detail' : ''}"><div class="thumb">${thumbs[id] ? `<img src="${thumbs[id]}" alt="${s.title}">` : ''}</div><p class="story">${s.text(ctx)}</p>${linkedFilm ? `<button class="pill wide" type="button" data-film="${linkedFilm.id}">Смотреть мультик</button>` : ''}</div>`;
+  if(s.activity && state.seen[id]){
+    const replay=document.createElement('button');replay.type='button';replay.className='pill wide';
+    replay.textContent='Разыграть снова';replay.onclick=()=>{album.hidden=true;finishSnaps();day.story(id);};
+    albumBody.firstElementChild.append(replay);
+  }
   album.scrollTop = 0;
 }
 let detailOpen = false;

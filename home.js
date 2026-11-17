@@ -1,6 +1,6 @@
 /* Занятия доступны со страницы «Дела» и прямо из комнат. */
 window.HOME = {
-  init({state, save, S, stage, scene, caption, home, inGame, cook, snack, bedtime, say, markSeen}) {
+  init({state, save, S, stage, scene, caption, home, inGame, cook, snack, bedtime, say}) {
     const $ = id => document.getElementById(id);
     const sheet = $('daySheet'), content = $('dayContent');
     const names = {shket:'Шкет',manya:'Маня',peng:'Пингвин'}, ids=Object.keys(names);
@@ -67,8 +67,14 @@ window.HOME = {
       heading('Вместе');const games=group();games.classList.add('day-games');
       button(games,'⚽ Мяч с Пингвином',()=>ball(chosen));button(games,'⌕ Ушли гулять',hunt);
       button(games,'На кухню',()=>{cancel();cook();});button(games,'Мои находки',shelf);
-      heading('Сценки');const list=group();list.classList.add('day-stories');
-      for(const s of S.HOME_STORIES)pictureButton(list,s.id,s.title,()=>story(s.id));
+      const known=S.HOME_STORIES.filter(s=>state.seen[s.id]).sort((a,b)=>state.seen[b.id]-state.seen[a.id]);
+      if(known.length){
+        heading('Недавно в гостях');const list=group();list.classList.add('day-stories');
+        for(const s of known.slice(0,4)){
+          if(s.draw)button(list,s.title,()=>story(s.id));
+          else pictureButton(list,s.id,s.title,()=>story(s.id));
+        }
+      }
     }
     function shelf(){
       menuPage('Находки из кладовой');const tab=group();
@@ -96,10 +102,10 @@ window.HOME = {
     }
     function story(id,choice=0){
       const s=S.HOME_STORIES.find(x=>x.id===id);if(!s)return;
-      begin('bedroom',W=>W.P.homeStory(id,choice));markSeen(id);
+      begin('bedroom',W=>s.draw?s.draw(W,choice>0):W.P.homeStory(id,choice));
       caption(s.title,choice?s.ends[choice-1]:s.line,choice?[['day-replay','Ещё раз']]:s.picks.map((label,i)=>['day-pick'+(i+1),label]));
       handle=(act)=>{if(act==='day-replay')story(id);else if(act==='day-pick1'||act==='day-pick2')story(id,Number(act.slice(-1)));};
-      if(choice)WORLD.react(s.toy,'hop');
+      if(choice && s.toy)WORLD.react(s.toy,'hop');
     }
     let handle=()=>{};
     function action(act){if(act==='day-bed'){cancel();bedtime();return;}if(active)handle(act);}
