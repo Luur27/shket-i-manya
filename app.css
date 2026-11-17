@@ -75,6 +75,29 @@ button { font: inherit; color: inherit; }
 .care-meter progress::-webkit-progress-bar {background:var(--line)}
 .care-meter progress::-webkit-progress-value {background:var(--fill);border-radius:8px}
 .care-meter progress::-moz-progress-bar {background:var(--fill);border-radius:8px}
+.wish-card,.work-row {border:1px solid var(--line);border-radius:16px;background:var(--paper);padding:12px 14px;margin:12px 0}
+.wish-card p,.work-row p {margin:0 0 8px}
+.fabric-preview {display:block;width:100%;height:auto;border-radius:17px;box-shadow:0 3px 8px var(--shadow)}
+.needle-pad,.sort-tile,.parcel-pad {touch-action:none}
+.studio-choices button[style*="--swatch"] {border-left:12px solid var(--swatch)}
+#dayContent .pill.wide {display:block;width:100%;margin:12px 0}
+.material-chip {padding:7px 10px;border-radius:10px;background:var(--paper);border:1px solid var(--line);font-size:14px}
+.locked-material {color:var(--muted)}
+.work-row {display:grid;grid-template-columns:32% 1fr;gap:12px;align-items:center}
+.work-row .mini {margin:3px;min-height:38px}
+.sorting-board {display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.sorting-board>div {display:grid;align-content:center;gap:10px}
+.sort-tile {display:grid;place-items:center;padding:10px;border-radius:16px;border:2px solid var(--line);background:var(--paper);min-height:70px}
+.sort-tile[aria-pressed="true"] {border-color:var(--accent)}
+.sort-tile:disabled {opacity:.45}
+.sort-tile canvas {width:60px;height:auto}
+.sort-tile span {font-size:36px}
+.piece-ghost {position:fixed;z-index:45;pointer-events:none;transform:translate(-50%,-50%);opacity:.85}
+.wool-comb {position:absolute;width:42px;height:21px;background:repeating-linear-gradient(90deg,#985d54 0 3px,transparent 3px 6px);border-top:7px solid #d38e7c;border-radius:5px;pointer-events:none;transform:translate(-35%,-90%) rotate(-18deg)}
+.parcel-pad {display:grid;place-items:center;min-height:215px;background:#dfc5ac;border-radius:20px}
+.parcel-lid {position:relative;width:65%;height:112px;border-radius:8px;background:linear-gradient(90deg,#ba8863 43%,#ac5260 43% 55%,#c59872 55%);box-shadow:0 14px #a47b59,0 17px 7px #8f746b;transform:rotate(-4deg)}
+.parcel-lid span {position:absolute;right:8px;bottom:15px;background:#fff4d6;color:#54362c;padding:4px 12px;transform:rotate(8deg);font:20px var(--font-hand)}
+.untied .parcel-lid {background:#c59970;transform:rotate(2deg)}
 #dayContent h3 {font:400 23px var(--font-hand);margin:18px 0 8px}
 .day-options {display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 14px}
 .day-options button {min-height:42px}

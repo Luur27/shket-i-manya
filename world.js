@@ -471,7 +471,85 @@ function attach(h, where, obj, rot) {
 const ARM = { down: [-0.25, 0.25], wave: [0, 2.5], up: [0, 2.6], hug: [-1.15, -0.35], hold: [-1.25, -0.4], eyes: [-2.45, -0.55], out: [-0.2, 0.9] };
 const FLIP = { down: [0, 0.32], up: [0, 2.3], wave: [0, 2.3], hold: [-1.2, 0.1], out: [0, 1.1] };
 const EYE = { open: 1, closed: 0.14, happy: 0.16, wide: 1.32, grumpy: 0.85 };
-let outfit = {}, homeItems = {};
+let outfit = {}, homeItems = {}, handmade = [];
+/* Уголок на полу перед кроватью. Координаты сохранения отсчитываются от середины ковра. */
+const CORNER = {width:3.8, depth:2.24, z:2.84, y:-.38};
+let cornerFocus=false, napFocus=null, cornerMeshes=new Map(), roomGifts=[];
+function fabricMaterial(item) {
+  const m=plush('#ffffff',TX.knit,.91);
+  m.sheen.multiplyScalar(.28);
+  m.map=canvasTex(256,256,(c,w,h)=>STUDIO.textile(c,w,h,item));
+  return m;
+}
+function stitchedBow(item){
+  const g=new THREE.Group(), cloth=fabricMaterial(item);
+  for(const side of [-1,1])blob(cloth,.102,.068,.042,side*.085,0,0,g).rotation.z=-side*.24;
+  blob(cloth,.038,.045,.046,0,0,.02,g);
+  return g;
+}
+function cornerMeasure(item, turn){
+  const half={pillow:[.38,.24],mat:[.66,.40],lamp:[.22,.20],cup:[.32,.21],ball:[BALL_RADIUS,BALL_RADIUS]}[item.kind];
+  return turn%2 ? [half[1],half[0]] : half;
+}
+function cornerPosition(item,pos,others){
+  const [w,d]=cornerMeasure(item,pos.turn);
+  const x=THREE.MathUtils.clamp(pos.x,-CORNER.width/2+w,CORNER.width/2-w);
+  const z=THREE.MathUtils.clamp(pos.z,-CORNER.depth/2+d,CORNER.depth/2-d);
+  let lift=0;
+  for(const entry of others){
+    if(entry.item.id===item.id)continue;
+    const [a,b]=cornerMeasure(entry.item,entry.turn);
+    const dx=Math.abs(x-entry.x), dz=Math.abs(z-entry.z);
+    if(dx>=w+a+.02 || dz>=d+b+.02)continue;
+    if(entry.item.kind==='mat' && item.kind!=='mat' && dx+w<=a && dz+d<=b){lift=.08;continue;}
+    if(item.kind==='mat' && entry.item.kind!=='mat' && dx+a<=w && dz+b<=d)continue;
+    return null;
+  }
+  return {x,z,turn:pos.turn,lift};
+}
+function restOnCushion(toy,x,z,floor,top){
+  // Подбираем наклон, при котором бок лежит на полу, а щека касается подушки.
+  const vertex=new THREE.Vector3(), contact=new THREE.Vector3();
+  let lowest=0;
+  function measure(angle){
+    toy.place.rotation.z=angle;toy.place.updateWorldMatrix(true,true);
+    let headY=Infinity,bodyY=Infinity;
+    toy.body.children.forEach(part=>part.traverseVisible(mesh=>{
+      const points=mesh.geometry?.attributes.position;
+      if(!points)return;
+      for(let i=0;i<points.count;i++){
+        vertex.fromBufferAttribute(points,i).applyMatrix4(mesh.matrixWorld);
+        if(part===toy.head){if(vertex.y<headY){headY=vertex.y;contact.copy(vertex);}}
+        else bodyY=Math.min(bodyY,vertex.y);
+      }
+    }));
+    lowest=bodyY;
+    return headY-bodyY;
+  }
+  let lo=Math.PI/2-.95,hi=Math.PI/2+.18;
+  for(let i=0;i<10;i++){const a=(lo+hi)/2;if(measure(a)>top-floor-.008)lo=a;else hi=a;}
+  measure((lo+hi)/2);
+  toy.place.position.x+=x-contact.x;toy.place.position.z+=z-contact.z;toy.place.position.y+=floor-lowest;
+  toy.place.updateMatrixWorld(true);
+}
+function drawCorner(entries) {
+  const g=add(new THREE.Group());
+  const rugTex=canvasTex(512,320,(c,w,h)=>{
+    c.fillStyle='#a799a7';c.fillRect(0,0,w,h);
+    c.fillStyle='#897b8b';c.fillRect(5,5,w-10,h-10);c.fillStyle='#bbacb6';c.fillRect(18,18,w-36,h-36);
+    c.strokeStyle='#e5d7c1';c.lineWidth=3;c.setLineDash([5,6]);c.strokeRect(11,11,w-22,h-22);
+    c.globalAlpha=.38;for(const x of [38,w-38])for(const y of [38,h-38])STUDIO.motif(c,'leaf',x,y,12,'#765f72');
+  });
+  mesh(new THREE.BoxGeometry(CORNER.width+.12,.025,CORNER.depth+.12),flat('#ffffff',.95,rugTex),g,0,CORNER.y-.014,CORNER.z);
+  for(const e of entries){
+    const pose=cornerPosition(e.item,e,entries);
+    if(!pose)continue;
+    const model=P.findItem(e.item,pose.x,CORNER.z+pose.z);
+    model.position.y=CORNER.y+pose.lift+(e.item.kind==='ball'?BALL_RADIUS:0);model.rotation.y=pose.turn*Math.PI/2;
+    cornerMeshes.set(e.item.id,model);
+  }
+}
+
 function pose(id, o = {}) {
   const h = H3[id], d = Object.assign({}, DEF[id], o);
   // новая поза отменяет незаконченный выход в комнату (например, фото сразу после перехода)
@@ -510,7 +588,8 @@ function pose(id, o = {}) {
   const hat = d.hat !== undefined ? d.hat : fit.hat;
   if (hat && ACC[hat]) attach(h, 'top', ACC[hat](d.hatColor));
   if (d.onHead === 'tangerine') attach(h, 'onhead', ACC.tangerine());
-  if (d.bow !== false && fit.bow) attach(h, 'side', ACC.bow(), id === 'manya' ? 0.4 : 0);
+  const ribbon=handmade.find(item=>item.kind==='bow' && item.id===homeItems[id+'bow']);
+  if (d.bow ?? (ribbon || fit.bow)) attach(h,'side',ribbon?stitchedBow(ribbon):ACC.bow(),id==='manya'?.4:0);
   if (d.glasses !== false && fit.glasses) attach(h, 'face', ACC.glasses());
   if(homeItems[id+'pack']==='orangePack'){
     const bag=rucksack();h.body.add(bag);h.acc.push(bag);
@@ -748,6 +827,26 @@ const P = {
   findItem(item, x, z) {
     const g = add(new THREE.Group());
     g.position.set(x, TOP, z);
+    if(item.kind==='bow'){g.add(stitchedBow(item));return g;}
+    if(item.print){
+      const mat=item.kind==='mat',cloth=fabricMaterial(item);
+      if(mat){
+        const patch=mesh(new THREE.BoxGeometry(1.20,.045,.68),cloth,g,0,.027,0);
+        for(let i=0;i<17;i++)for(const side of [-1,1])seg(cloth,[i*.068-.55,.03,side*.34],[i*.068-.55,.01,side*.39],.010,g);
+        patch.receiveShadow=true;
+      }else{
+        const geo=new THREE.SphereGeometry(1,40,24);
+        const points=geo.attributes.position,uv=geo.attributes.uv;
+        const soften=n=>Math.sign(n)*Math.abs(n)**.58;
+        for(let i=0;i<points.count;i++){
+          const x=soften(points.getX(i)),y=soften(points.getY(i)),z=soften(points.getZ(i));
+          points.setXYZ(i,x,y,z);uv.setXY(i,(x+1)/2,(1-z)/2);
+        }
+        geo.computeVertexNormals();
+        mesh(geo,cloth,g,0,.125,0).scale.set(.36,.125,.22);
+      }
+      return g;
+    }
     const paint = plush(item.color, TX.plush, .8);
     if(item.kind==='pack'){g.add(rucksack());return g;}
     if(item.kind==='specs'){g.add(heartSpecs());g.children[0].position.y=.08;return g;}
@@ -1320,7 +1419,7 @@ const ROOMS = {}, OVEN = {};
 function buildBedroom() {
   const room = new THREE.Group(); scene.add(room);
   const wall = mesh(new THREE.PlaneGeometry(14, 7), flat('#ffffff', 0.85, TX.wallpaper), room, 0, 2.3, -1.6); wall.castShadow = false;
-  const floor = mesh(new THREE.PlaneGeometry(14, 10), flat('#cdbba8', 0.8), room, 0, -0.4, 0); floor.rotation.x = -Math.PI / 2; floor.castShadow = false;
+  const floor = mesh(new THREE.PlaneGeometry(18, 20), flat('#ffffff',.88,planks('#be9e82','#b49175',[7,8])), room, 0, -0.4, 0); floor.rotation.x = -Math.PI / 2; floor.castShadow = false;
   mesh(new THREE.BoxGeometry(4.4, 1.2, 0.14), plush('#ece0d3', TX.plush, 0.9, '#ffffff', 0.01), room, 0, 0.6, -1.5);
   const white = flat('#e9e7e0', 0.85);
   const sheetM = flat('#ffffff', 0.85, TX.sheet); sheetM.color.setScalar(0.93);
@@ -1586,6 +1685,50 @@ function setTod(t, snow = false) {
 let skyOpt = {};
 const API = {
   TOP, P, huntLayout,
+  focusCorner() { cornerFocus=true; },
+  sleepGift(id,item){
+    const toy=H3[id];
+    if(item.kind==='pillow'){
+      const head=toy.head.getWorldPosition(new THREE.Vector3());
+      const cushion=P.findItem(item,head.x,head.z);
+      const headBox=new THREE.Box3().setFromObject(toy.head.children[0]);
+      const top=new THREE.Box3().setFromObject(cushion).max.y;
+      if(headBox.min.y<top)toy.place.position.y+=top-headBox.min.y-.016;
+    }else{
+      const center=new THREE.Box3().setFromObject(toy.place).getCenter(new THREE.Vector3());
+      const blanket=P.findItem(item,center.x,center.z);
+      // Плед лежит под игрушкой во время сна, включая её анимацию дыхания.
+      const height=new THREE.Box3().setFromObject(blanket).max.y;
+      const body=new THREE.Box3().setFromObject(toy.place);
+      toy.place.position.y+=Math.max(0,height-body.min.y);
+    }
+    toy.place.updateMatrixWorld(true);
+  },
+  giftRest(key) {
+    const item=handmade.find(f=>f.id===key)||handmade.find(f=>f.kind!=='bow');
+    if(!item){pose('peng',{eyes:'closed',lie:'side',anim:'sleep'});return;}
+    cornerFocus=true;
+    for(const id of ['shket','manya','peng','veta'])pose(id,{visible:false});
+    const location=roomGifts.find(e=>e.item.id===item.id);
+    let p=location;
+    if(!p){
+      for(const z of [0,.55,-.55])for(const x of [0,-.8,.8,-1.4,1.4]){
+        if(!p)p=cornerPosition(item,{x,z,turn:0},roomGifts);
+      }
+    }
+    if(!p){cornerFocus=false;p={x:0,z:0};}
+    const floor=cornerFocus?CORNER.y:TOP, z=p.z+(cornerFocus?CORNER.z:0);
+    const lift=(location?cornerPosition(item,p,roomGifts)?.lift:p.lift)||0;
+    if(!location){
+      const gift=P.findItem(item,p.x,z);gift.position.y=floor+lift;
+    }
+    pose(item.owner,{x:p.x,z,y:floor,s:.53,lie:'side',eyes:'closed',anim:'sleep'});
+    const toy=H3[item.owner],base=new THREE.Box3().setFromObject(toy.place);
+    if(item.kind==='pillow')restOnCushion(toy,p.x,z,floor,floor+lift+.25);
+    else toy.place.position.y+=floor+lift+.05-base.min.y;
+    if(cornerFocus)napFocus={x:p.x+.15,z};
+    P.zzz(p.x,floor+.8,z);
+  },
   pose, sky(o) { Object.assign(skyOpt, o); },
   aim(dy) { aim = dy; },                 // опустить или поднять взгляд камеры на эту сцену
   heroPos(id) { return H3[id].place.position.clone(); },
@@ -1602,6 +1745,9 @@ function dispose(root) {
 }
 function stage(setup, ctx, room = 'bedroom') {
   setRoom(room);
+  const wasCorner=cornerFocus;
+  cornerFocus=false;napFocus=null;
+  cornerMeshes.clear();
   huntTargets = [];
   peekingToy = null;
   Object.values(H3).forEach(h => { h.walk = null; });
@@ -1620,7 +1766,13 @@ function stage(setup, ctx, room = 'bedroom') {
   // гостья (Вета) видна, только если сцена её поставила
   Object.keys(H3).forEach(id => { pose(id, {}); if (H3[id].guest) H3[id].place.visible = false; });
   if (setup) setup(API, ctx);
-  if(room==='bedroom'&&homeItems.lamp==='starLamp')P.findItem({kind:'lamp',color:'#df9a5f'},-1.68,-.87);
+  if(room==='bedroom' && (roomGifts.length || cornerFocus)) drawCorner(roomGifts);
+  if(wasCorner || cornerFocus){
+    target.x=napFocus?.x||0;
+    target.z=napFocus?.z??(cornerFocus?CORNER.z:-.1);
+    az=azV=0;el=napFocus?.60:cornerFocus?.95:.34;aimNow=aim;fit(camera.aspect);placeCamera();
+  }
+  if(room==='bedroom'&&homeItems.lamp==='starLamp'&&!roomGifts.some(e=>e.item.id==='starLamp'))P.findItem({kind:'lamp',color:'#df9a5f'},-1.68,-.87);
   pigeon.visible = !!skyOpt.pigeon;
   setTod(skyOpt.tod || ctx.tod, !!skyOpt.snow);
 }
@@ -1643,6 +1795,10 @@ function fit(aspect) {
   // низкий широкий (когда открыта шторка) — камера ближе, чтобы герои не мельчили
   dist = Math.max(4.7, 1.85 / (half * aspect));
   baseTy = Math.max(0.95, 0.9 + (dist - 5.6) * 0.45);
+  if(cornerFocus){
+    dist=napFocus?Math.max(2.35,1.04/(half*aspect)):Math.max(3.5,2.24/(half*aspect));
+    baseTy=CORNER.y+(napFocus?.22:0);
+  }
   target.y = baseTy + aimNow;
   camera.updateProjectionMatrix();
 }
@@ -1821,6 +1977,21 @@ window.WORLD = {
   onFrame(cb) { frameCbs.push(cb); },
   setOutfit(o) { outfit = o || {}; },
   setHomeItems(items) { homeItems=items; },
+  setStudio(items,entries) {handmade=items;roomGifts=entries;},
+  cornerPosition,
+  cornerPoint(x,y){
+    cast(x,y);
+    const hit=ray.ray.intersectPlane(new THREE.Plane(new THREE.Vector3(0,1,0),-CORNER.y),new THREE.Vector3());
+    return hit?{x:hit.x,z:hit.z-CORNER.z}:null;
+  },
+  moveCorner(entries){
+    for(const e of entries){
+      const model=cornerMeshes.get(e.item.id),p=cornerPosition(e.item,e,entries);
+      if(!model || !p)continue;
+      model.position.set(p.x,CORNER.y+p.lift+(e.item.kind==='ball'?BALL_RADIUS:0),CORNER.z+p.z);
+      model.rotation.y=p.turn*Math.PI/2;
+    }
+  },
   heroWorld(id) { return H3[id].place.position.clone(); },
   hidingLabels(room) { return huntRooms[room].map(([,label])=>label); },
   hidingSpotAt(x,y){

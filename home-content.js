@@ -73,6 +73,13 @@ for (const story of S.HOME_STORIES) {
     const scene={id,title,rarity:'common',activity:true,when:()=>true,text:()=>line,setup:W=>draw(W,false)};
     S.SCENES.push(scene); S.byId[id]=scene;
   }
+const keepsakeRest={
+  id:'handmadeNap',title:'С подарком под щекой',rarity:'common',when:()=>false,
+  hint:'после сшитого подарка',
+  text:c=>{const toy=c.variant?.split('-')[1];return (S.WHO[toy]?.name||'Кто-то из игрушек')+(toy==='manya'?' уже устроилась':' уже устроился')+' с твоим подарком у кровати. '+(toy==='manya'?'Шкет':'Маня')+' шепчет: «Смотри, пригодился».';},
+  setup:(W,c)=>W.giftRest(c.variant)
+};
+S.SCENES.push(keepsakeRest);S.byId[keepsakeRest.id]=keepsakeRest;
 Object.assign(S.INGREDIENTS, { berries:'Ягоды', curd:'Творог', oats:'Хлопья' });
 Object.assign(S.COOK_LINES.add,{ berries:['Одну в миску, одну на пробу!'], curd:['Белые облачка!'], oats:['Хлопья шуршат, как дождик.'] });
 S.RECIPES.push(

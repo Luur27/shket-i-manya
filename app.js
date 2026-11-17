@@ -88,7 +88,7 @@ const cinema = window.CINEMA.init(S.FILM, covered => WD.setPaused(covered));
 let room = 'bedroom', mode = 'scene', game = null, cook = null, bath = null, popped = 0;
 let roomChange = 0;
 const day = HOME.init({
-  state, save, S, stage, say, caption: (label,text,buttons)=>setCaption(label,text,{buttons}), home:()=>show(false), inGame:()=>mode==='home',
+  state, save, S, stage, say, now, photo:()=>takePhoto(true), caption: (label,text,buttons)=>setCaption(label,text,{buttons}), home:()=>show(false), inGame:()=>mode==='home',
   scene(id,setup) {
     roomChange++; curtain.classList.remove('on'); if(state.bedSince)day.wake(); closeTray(); room=id; mode='home'; game=cook=bath=null;
     setChrome(todOf(now())); WD.stage(setup,ctxNow({}),room); renderBar();
@@ -135,7 +135,10 @@ function show(fade) {
   if (fade) { stage.classList.remove('fade'); void stage.offsetWidth; stage.classList.add('fade'); }
   const note = sc.note ? sc.note(ctx) : '';
   const film = S.FILMS[sc.film || sc.id];
-  setCaption(state.cur.label, state.cur.variant && sc.resolved ? sc.resolved.text(ctx) : sc.text(ctx), { isNew: state.cur.isNew, note, sign: ctx.sign, buttons: film ? [['film', 'Смотреть мультик']] : sc.activity ? [['join-story','Присоединиться']] : [['day-needs',day.invitation()]] });
+  const buttons=film ? [['film','Смотреть мультик']] : sc.activity ? [['join-story','Присоединиться']] : [['day-needs',day.invitation()]];
+  const host=day.studio.featured();
+  if(host && !film)buttons.push(['ask-'+host,S.WHO[host].name+' зовёт']);
+  setCaption(state.cur.label, state.cur.variant && sc.resolved ? sc.resolved.text(ctx) : sc.text(ctx), {isNew:state.cur.isNew,note,sign:ctx.sign,buttons});
   const days = S.daysTogether(now());
   $('together').textContent = `вместе ${days} ${S.plural(days, ['день', 'дня', 'дней'])}`;
   renderBar();
@@ -270,6 +273,7 @@ function pickScene(ctx) {
   const today = dayKey(ctx.now);
   const specials = S.SCENES.filter(s => s.rarity === 'special' && s.when(ctx));
   if (specials.length && state.specialDay !== today) { state.specialDay = today; return specials[0].id; }
+  if(day.studio.getPending())return 'handmadeNap';
   const pool = S.SCENES.filter(s => s.rarity !== 'special' && s.id !== 'hello' && s.when(ctx) && !(state.cur && s.id === state.cur.id));
   if (!pool.length) return 'cuddle';
   const surprises=pool.filter(s=>s.activity && !state.seen[s.id]);
@@ -320,7 +324,7 @@ function arrive() {
     if (isNew) { state.seen[id] = t; state.fresh.push(id); }
     state.visits++;
     // «Ушли гулять»: запоминаем, кто ушёл, — в следующий раз он вернётся с подарком
-    let variant = '';
+    let variant = id==='handmadeNap'?day.studio.takeRest():'';
     if (id === 'walk') { variant = S.pick(['manya', 'shket', 'peng']); state.walkOut = variant; }
     if (id === 'back') { variant = state.walkOut || 'shket'; state.walkOut = null; }
     state.cur = { id, at: t, label: premiere ? 'Премьера для Веты' : first ? 'Знакомство' : `Пока тебя не было · ${fmtAway(away)}`, variant, isNew, seed: Math.random(), away };
@@ -328,8 +332,10 @@ function arrive() {
     save();
     show(true);
     if (premiere) openFilm();
-    else if(selfServed)say('shket','Мы сами позавтракали! Те крошки под подушкой… это не мои.');
-    else if (!first) greet(S.HELLO);
+    else if(id!=='handmadeNap'){
+      if(selfServed)say('shket','Мы сами позавтракали! Те крошки под подушкой… это не мои.');
+      else if(!first)greet(S.HELLO);
+    }
   } else {
     state.last = t;
     save();
@@ -606,10 +612,13 @@ function wear(id, item) {
   const def = wearList().find(w => w.id === item);
   const fit = Object.assign({}, state.outfit[id]);
   let on = true;
-  if (def.kind === 'none') { delete state.outfit[id]; on = false; }
+  if (def.kind === 'none') { delete state.outfit[id]; delete state.homeItems[id+'bow']; on = false; }
   else {
     if (def.kind === 'hat') { if (fit.hat === item) { delete fit.hat; on = false; } else fit.hat = item; }
-    else { fit[def.kind] = !fit[def.kind]; on = fit[def.kind]; }
+    else {
+      if(def.kind==='bow')delete state.homeItems[id+'bow'];
+      fit[def.kind] = !fit[def.kind]; on = fit[def.kind];
+    }
     state.outfit[id] = fit;
   }
   save();
@@ -831,9 +840,9 @@ function callPigeon() {
 }
 /* коридор: фото у зеркала в рамке-полароиде, сохранить в «Фото»; обнимашки */
 let photoBlob = null;
-function takePhoto() {
+function takePhoto(keepScene=false) {
   closeTray();
-  S.LAYOUT.hall(WD);
+  if(!keepScene) S.LAYOUT.hall(WD);
   ['manya', 'shket', 'peng'].forEach(id => WD.react(id, 'hop'));
   say(S.pick(['manya', 'shket', 'peng']), S.pick(L.hall.photo));
   setTimeout(() => {
@@ -895,15 +904,9 @@ function openChest() {
     if(isFind)setCaption('Кладовая',`Нашлась вещица — ${next.name.toLowerCase()}! Выбери, кому её подарить.`,{buttons:[['finds','Посмотреть находки']]});
     else setCaption('Кладовая', `В сундуке — ${next.name.toLowerCase()}! Теперь это есть в гардеробе: жми «Нарядить».`);
   } else {
-    save();
-    WD.room.chest(true, null);
-    TOYS.forEach((id,i)=>{
-      day.giveSnack(id);
-      setTimeout(()=>{if(room==='pantry'){WD.react(id,'chomp');burst(id,2);}},600+i*400);
-    });
-    say('shket', L.pantry.treat);
-    setCaption('Кладовая', 'Сегодня в сундуке печеньки — всех угостили. Завтра будет ещё.');
-    save();
+    const supply=day.studio.reward();
+    WD.room.chest(true,supply);
+    setCaption('Корзинка Мани',supply.name+'. Маня уже достала иголки.',{buttons:[['studio-sew','Сшить вещь']]});
   }
 }
 
@@ -958,6 +961,10 @@ $('gameBtns').addEventListener('click', e => {
   if(mode==='home')return day.action(act);
   if(act==='care-menu')return day.menu();
   if(act==='finds')return day.shelf();
+  if(act==='studio-sew')return day.studio.fromChest();
+  if(act.startsWith('ask-')){
+    const id=act.slice(4);if(S.WHO[id])day.showWish(id);return;
+  }
   if(act==='join-story')return day.story(state.cur.id);
   if(act==='day-needs')return day.accept();
   if (act === 'film') return openFilm(S.byId[state.cur.id]?.film || state.cur.id);
@@ -1001,7 +1008,8 @@ function bedSetup(W){
     const pos=W.heroPos(id);
     for(const kind of ['mat','pillow']){
       const item=day.selected(kind,id);
-      if(item.id)W.P.findItem(item,pos.x,pos.z+.24);
+      if(item.print)W.sleepGift(id,item);
+      else if(item.id)W.P.findItem(item,pos.x,pos.z+.24);
     }
   }
 }
@@ -1062,7 +1070,7 @@ function updateBadge() {
 }
 function thumbCtx(scene, ts) {
   const d = new Date(ts);
-  return S.makeCtx({ tod: todOf(d), now: scene.rarity === 'special' ? d : now(), seed: 0.3, away: 40 * 3600e3 });
+  return S.makeCtx({ variant:scene.id==='handmadeNap'?day.studio.lastRest():'', tod: todOf(d), now: scene.rarity === 'special' ? d : now(), seed: 0.3, away: 40 * 3600e3 });
 }
 let snapping = false;
 function renderGrid() {

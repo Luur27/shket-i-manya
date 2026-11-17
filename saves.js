@@ -40,6 +40,7 @@ function decode(text) {
   for(const key of ['bedSince','ballBest']){
     if(data[key]!==undefined && (!Number.isFinite(data[key])||data[key]<0))throw new Error('Повреждены данные занятий.');
   }
+  if(data.studio!==undefined && !STUDIO.valid(data.studio,data.unlocked||[])) throw new Error('Повреждены материалы или работы мастерской.');
   return data;
 }
 function init(adapter) {

@@ -1,6 +1,6 @@
 /* Занятия доступны со страницы «Дела» и прямо из комнат. */
 window.HOME = {
-  init({state, save, S, stage, scene, caption, home, inGame, cook, snack, readyDish, serveTo, bedtime, say}) {
+  init({state, save, S, stage, scene, caption, home, inGame, cook, snack, readyDish, serveTo, bedtime, say, now, photo}) {
     const $ = id => document.getElementById(id);
     const sheet = $('daySheet'), content = $('dayContent');
     const names = {shket:'Шкет',manya:'Маня',peng:'Пингвин'}, ids=Object.keys(names);
@@ -18,7 +18,7 @@ window.HOME = {
     const sets=state.homeItems || (state.homeItems={});
     WORLD.setHomeItems(sets);
     function selected(kind,id=chosen){
-      return S.FINDS.find(f=>f.id===sets[kind==='lamp'?'lamp':id+kind]&&state.unlocked.includes(f.id))||defaults[kind];
+      return studio.workFor(kind,id) || S.FINDS.find(f=>f.id===sets[kind==='lamp'?'lamp':id+kind]&&state.unlocked.includes(f.id))||defaults[kind];
     }
     function cancel(){cleanup();cleanup=()=>{};handle=()=>{};active=false;sheet.hidden=true;}
     function begin(room,setup) {cancel();active=true;scene(room,setup);}
@@ -122,8 +122,10 @@ window.HOME = {
         for(const id of ids)button(places,names[id],()=>{state.bedCompanion=id;cancel();bedtime();});
         button(content,'Как обычно',()=>{delete state.bedCompanion;cancel();bedtime();},'ghost-btn');
       });
+      studio.wishlist(chosen);
       heading('Вместе');const games=group();games.classList.add('day-games');
-      button(games,'⚽ Мяч с Пингвином',()=>ball(chosen));button(games,'⌕ Ушли гулять',hunt);
+      button(games,'⚽ Мяч с Пингвином',()=>ball(chosen));button(games,'⌕ Ушли гулять',()=>hunt(chosen));
+      button(games,'Мастерская Мани',()=>studio.workshop(chosen));button(games,'Уголок у кровати',()=>studio.cornerShelf(chosen));
       button(games,'На кухню',()=>{cancel();cook();});button(games,'Мои находки',shelf);
       const known=S.HOME_STORIES.filter(s=>state.seen[s.id]).sort((a,b)=>state.seen[b.id]-state.seen[a.id]);
       if(known.length){
@@ -137,10 +139,13 @@ window.HOME = {
     function shelf(){
       menuPage('Находки из кладовой');const tab=group();
       for(const id of ids){const b=button(tab,names[id],()=>{chosen=id;shelf();});b.setAttribute('aria-pressed',id===chosen);}
+      const tools=group();
+      button(tools,'Сшито с Маней',studio.collection);button(tools,'Ткани и узоры',studio.materials);button(tools,'Расставить вещи',()=>studio.cornerShelf(chosen));
       const finds=S.FINDS.filter(f=>state.unlocked.includes(f.id));
       if(!finds.length){const p=document.createElement('p');p.textContent='Открой сундук в кладовой. Находки для питья, игр и сна останутся здесь.';content.append(p);}
       const list=group();for(const f of finds)button(list,(selected(f.kind)?.id===f.id?'✓ ':'')+f.name,()=>{
         const key=f.kind==='lamp'?'lamp':chosen+f.kind;
+        if(studio.isPlaced(f.id)){ studio.stow(f.id); }
         if(['pack','specs','lamp'].includes(f.kind)){
           const worn=sets[key]===f.id;
           if(worn)delete sets[key];else sets[key]=f.id;
@@ -158,12 +163,63 @@ window.HOME = {
       });
       button(content,'К делам',menu,'ghost-btn');
     }
-    function story(id,choice=0){
+    function story(id,choice=0,assigned=null){
       const s=S.HOME_STORIES.find(x=>x.id===id);if(!s)return;
-      begin('bedroom',W=>s.draw?s.draw(W,choice>0):W.P.homeStory(id,choice));
-      caption(s.title,choice?s.ends[choice-1]:s.line,choice?[['day-replay','Ещё раз']]:s.picks.map((label,i)=>['day-pick'+(i+1),label]));
-      handle=(act)=>{if(act==='day-replay')story(id);else if(act==='day-pick1'||act==='day-pick2')story(id,Number(act.slice(-1)));};
+      begin('bedroom',W=>{
+        if(s.draw)s.draw(W,choice>0);
+        else if(assigned){
+          const order=['shket','manya','peng'];
+          for(const {part,toy} of assigned){
+            const x=(toy-1)*1.08;
+            W.pose(order[toy],{x,z:-.2,s:.70,ry:toy===0?-1.4:0,eyes:'happy'});
+            const size=[.46,.23,.35][part];
+            W.P.pillow(x,W.TOP+.12,.44,size,.13,size*.64,['#c8a0b8','#b3cbd1','#e5c29f'][part]);
+          }
+        }else W.P.homeStory(id,choice);
+      });
+      const actions=choice?[['day-replay','Ещё раз']]:s.picks.map((label,i)=>['day-pick'+(i+1),label]);
+      const extra={woolSalon:'Расчесать шёрстку',socks:'Собрать пары',littleHike:'Собрать рюкзак',parcel:'Распаковать',pillowCouncil:'Раздать подушки',pengCorner:'Обустроить уголок'};
+      if(extra[id]&&!choice)actions.unshift(['day-hands',extra[id]]);
+      if(id==='woolSalon'&&choice)actions.unshift(['day-photo','Сфотографировать']);
+      caption(s.title,assigned?'Все устроились на своих подушках.':choice?s.ends[choice-1]:s.line,actions);
+      handle=act=>{
+        if(act==='day-replay')story(id);
+        else if(act==='day-photo')photo();
+        else if(act==='day-hands'){
+          if(id==='woolSalon')groom();
+          else if(id==='parcel')studio.unwrap(()=>story(id,2));
+          else if(id==='pengCorner')studio.cornerShelf('peng');
+          else studio.sortScene(id,assigned=>story(id,1,assigned));
+        }else if(act==='day-pick1'||act==='day-pick2')story(id,Number(act.slice(-1)));
+      };
       if(choice && s.toy)WORLD.react(s.toy,'hop');
+    }
+    function groom(){
+      begin('hall',W=>{
+        W.pose('peng',{x:0,z:.12,s:.88,eyes:'happy'});W.pose('manya',{x:-1.25,z:-.36,s:.69,arms:['down','wave']});
+        W.pose('shket',{x:1.18,z:-.22,s:.68,ry:-1.65});W.pose('veta',{visible:false});
+      });
+      let strokes=0,stroke=null;
+      const comb=document.createElement('span');comb.className='wool-comb';comb.setAttribute('aria-hidden','true');comb.hidden=true;stage.append(comb);
+      function instructions(){caption('Салон Мани','Проведи расчёской по Пингвину · '+strokes+' из 3',[['day-comb','Взмах расчёской']]);}
+      function brush(){
+        strokes++;WORLD.react('peng','squish');
+        if(strokes===3){story('woolSalon');document.getElementById('story').textContent='Пёрышки приглажены. Что примерим для фото?';}
+        else instructions();
+      }
+      function down(e){
+        if(WORLD.pickHero(e.clientX,e.clientY)!=='peng')return;
+        stroke=[e.clientX,e.clientY,e.pointerId];stage.setPointerCapture(e.pointerId);move(e);
+      }
+      function move(e){
+        if(!stroke||stroke[2]!==e.pointerId)return;const box=stage.getBoundingClientRect();
+        comb.hidden=false;comb.style.left=e.clientX-box.left+'px';comb.style.top=e.clientY-box.top+'px';
+        if(Math.hypot(e.clientX-stroke[0],e.clientY-stroke[1])>36){stroke=[e.clientX,e.clientY,e.pointerId];brush();}
+      }
+      function stop(){stroke=null;comb.hidden=true;}
+      stage.addEventListener('pointerdown',down);stage.addEventListener('pointermove',move);stage.addEventListener('pointerup',stop);stage.addEventListener('pointercancel',stop);
+      cleanup=()=>{stage.removeEventListener('pointerdown',down);stage.removeEventListener('pointermove',move);stage.removeEventListener('pointerup',stop);stage.removeEventListener('pointercancel',stop);comb.remove();};
+      instructions();handle=a=>{if(a==='day-comb')brush();};
     }
     let handle=()=>{};
     function action(act){if(act==='day-bed'){cancel();bedtime();return;}if(active)handle(act);}
@@ -204,7 +260,7 @@ window.HOME = {
       hall:'На стене кто-то видит своё отражение.', pantry:'Кто-то шуршит среди запасов.'
     };
     let lastHunt='';
-    function hunt(){
+    function hunt(owner=chosen){
       const target=S.pick(ids), goal=S.pick(Object.keys(clues));
       let place=Math.floor(Math.random()*WORLD.hidingLabels(goal).length);
       if(lastHunt===target+goal+place) place=(place+1)%WORLD.hidingLabels(goal).length;
@@ -216,8 +272,8 @@ window.HOME = {
         begin(room,W=>W.huntLayout(room,target,room===goal?place:null,checked,found));
         if(found){
           WORLD.react(target,'hop');
-          caption('Нашла!',names[target]+' выбирается из укрытия. «Я просто гулял! Женя же написал».',[['day-again','Спрятать снова']]);
-          handle=a=>{if(a==='day-again')hunt();};
+          caption('Нашла!',names[target]+' выбирается из укрытия. «Я просто гулял! Женя же написал».'+studio.complete('hunt',owner),[['day-again','Спрятать снова']]);
+          handle=a=>{if(a==='day-again')hunt(owner);};
           return;
         }
         const tap=e=>{const i=WORLD.hidingSpotAt(e.clientX,e.clientY);if(i!==null)handle('day-look'+i);};
@@ -275,7 +331,8 @@ window.HOME = {
             const wide=Math.abs(flight.x)>.97,short=flight.power<.86,saved=Math.abs(flight.x-keeper)<.34,goal=!wide&&!short&&!saved;
             shots++;if(goal)goals++;state.ballBest=Math.max(state.ballBest||0,goals);care.peng.played=Date.now();save();
             WORLD.react(goal?'manya':short||wide?'shket':'peng','hop');
-            score(goal?'Гол! Маня уже считает на копытцах':short?'Шкет подобрал недокатившийся мяч':wide?'Мимо штанги! Шкет возвращает мяч':'Пингвин поймал! Ещё удар?');
+            const wishThanks=studio.complete('ball',owner);
+            score((goal?'Гол! Маня уже считает на копытцах':short?'Шкет подобрал недокатившийся мяч':wide?'Мимо штанги! Шкет возвращает мяч':'Пингвин поймал! Ещё удар?')+wishThanks);
             returning = {start:sphere.position.clone(),elapsed:0};
             flight = null;
           }
@@ -327,7 +384,15 @@ window.HOME = {
       }
       return false;
     }
+    const studio=createWorkshop({
+      state,save,S,now,names,content,stage,button,heading,group,
+      page:title=>{cancel();menuPage(title);},begin,caption,
+      controls(fn,dispose=()=>{}){handle=fn;cleanup=dispose;},menu,ball,hunt,bedtime
+    });
     $('btnDay').onclick=menu;$('dayClose').onclick=()=>{cancel();if(inGame())home();};
-    return {menu,invitation,accept(){chosen=invited;menu();},shelf,pickDrink,pickGuest,water,hunt,ball,story,action,cancel,giveSnack,meal,sleep,wake,levels,statuses,tidyAfterAbsence,selected,get active(){return active;}};
+    return {studio,menu,showWish(id){
+      chosen=id;cancel();menuPage(names[id]+' зовёт');
+      studio.wishlist(id);button(content,'К делам',menu,'ghost-btn');
+    },invitation,accept(){chosen=invited;menu();},shelf,pickDrink,pickGuest,water,hunt,ball,story,action,cancel,giveSnack,meal,sleep,wake,levels,statuses,tidyAfterAbsence,selected,get active(){return active;}};
   }
 };
