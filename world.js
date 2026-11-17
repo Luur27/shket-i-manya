@@ -536,15 +536,223 @@ function labelSprite(text, x, y, z, s, color) {
   const t = textTex([text], 128, 128, { size: 90, color: color || '#6f7fb0' });
   return sprite(t, x, y, z, s, 'zzz');
 }
+const BALL_RADIUS = 0.19;
+const HALL_RUG_THICKNESS = 0.015;
+const HALL_RUG_Y = TOP + 0.008;
+const HALL_TURF = HALL_RUG_Y + HALL_RUG_THICKNESS / 2;
+
+// Реквизит ставится в переднем ряду, чтобы между предметами можно было заглянуть.
+const huntProps = {
+  pillows(g) {
+    for (let i = 0; i < 3; i++) {
+      const m = plush(['#98b8ce','#e7bcae','#c2a7c6'][i],TX.plush);
+      blob(m,.38,.10,.19,(i%2)*.035,.085+i*.15,0,g).rotation.y=(i-1)*.15;
+    }
+  },
+  cloth(g, color = '#8babaa', stripe = '#f8e8d2') {
+    const wood=flat('#bb997c'), fabric=plush(color,TX.plush), band=flat(stripe);
+    for (const x of [-.31,.31]) {
+      seg(wood,[x,.02,-.08],[x,.66,0],.02,g);
+      seg(wood,[x,.02,.14],[x,.65,0],.02,g);
+    }
+    seg(wood,[-.35,.65,0],[.35,.65,0],.022,g);
+    for (const z of [-.048,.06]) {
+      mesh(new THREE.BoxGeometry(.56,.56,.034),fabric,g,0,.36,z);
+      for(const y of [.14,.18])mesh(new THREE.BoxGeometry(.56,.018,.036),band,g,0,y,z);
+    }
+  },
+  book(g) {
+    const b=P.book(0,0,0,-.14,0);g.add(b);b.position.y=.28;b.scale.setScalar(1.5);
+  },
+  pot(g) {
+    const blue=flat('#8eaeb8'),chrome=shiny('#cec9bb');
+    mesh(new THREE.CylinderGeometry(.30,.26,.39,32),blue,g,0,.20,0);
+    blob(chrome,.32,.065,.32,0,.405,0,g);
+    blob(blue,.060,.045,.060,0,.485,0,g);
+    for(const x of [-.31,.31])mesh(new THREE.TorusGeometry(.068,.014,8,20),chrome,g,x,.28,0);
+  },
+  kettle(g) {
+    const k=P.teapot(0,0);g.add(k);k.position.set(0,0,0);k.scale.setScalar(1.25);
+  },
+  fruit(g) {
+    this.basket(g);
+    for(const [x,y,z] of [[-.15,.33,0],[.12,.33,.03],[0,.43,-.02]]){
+      const fruit=P.tangerine(0,0,0,.105,false);fruit.position.set(x,y,z);g.add(fruit);
+    }
+  },
+  basket(g) {
+    const reed=flat('#be9468'),rim=flat('#dcb888');
+    mesh(new THREE.CylinderGeometry(.29,.23,.32,28),reed,g,0,.16,0);
+    for(const y of [.07,.15,.24,.32])mesh(new THREE.TorusGeometry(.23+.06*y/.32,.016,6,28),rim,g,0,y,0).rotation.x=Math.PI/2;
+    mesh(new THREE.TorusGeometry(.25,.019,8,30,Math.PI),reed,g,0,.31,0);
+  },
+  towels(g) {
+    for(let i=0;i<3;i++){
+      const m=plush(['#b8d7cd','#dca9b3','#b5b8dc'][i],TX.plush);
+      const roll=mesh(new THREE.CylinderGeometry(.105,.105,.54,24),m,g,0,i===2?.285:.105,i===2?0:(i-.5)*.20);
+      roll.rotation.z=Math.PI/2;
+    }
+  },
+  leaves(g) {
+    const clay=flat('#c58c69'),leaves=flat('#76a17d');
+    mesh(new THREE.CylinderGeometry(.2,.14,.29,20),clay,g,0,.15,0);
+    for(let i=0;i<7;i++){
+      const a=i*2.4;
+      const leaf=blob(leaves,.106,.22,.048,Math.cos(a)*.12,.43+(i%2)*.09,Math.sin(a)*.08,g);
+      leaf.rotation.z=.55*Math.cos(a);leaf.rotation.y=a;
+    }
+  },
+  watering(g) {
+    const green=flat('#87b7a1');
+    mesh(new THREE.CylinderGeometry(.21,.18,.34,24),green,g,0,.18,0);
+    seg(green,[-.13,.12,0],[-.36,.36,0],.045,g);
+    blob(green,.065,.038,.066,-.36,.36,0,g);
+    mesh(new THREE.TorusGeometry(.13,.022,8,24),green,g,.19,.26,0);
+  },
+  stool(g) {
+    const timber=flat('#c49a76');
+    for(const x of [-.24,.24])for(const z of [-.15,.15])seg(timber,[x,0,z],[x*.86,.38,z*.85],.025,g);
+    mesh(new THREE.BoxGeometry(.61,.067,.44),timber,g,0,.39,0);
+    blob(plush('#c8a8b6',TX.plush),.29,.055,.21,0,.445,0,g);
+  },
+  boots(g) {
+    const rubber=flat('#d7ad65'), dark=flat('#805f44');
+    for(const x of [-.14,.14]){
+      blob(rubber,.12,.095,.21,x,.095,.06,g);
+      mesh(new THREE.CylinderGeometry(.116,.1,.32,20),rubber,g,x,.25,-.03);
+      mesh(new THREE.CylinderGeometry(.095,.095,.008,20),dark,g,x,.412,-.03);
+    }
+  },
+  bag(g) {const bag=rucksack();bag.scale.setScalar(1.25);g.add(bag);},
+  yarn(g) {
+    for(let i=0;i<3;i++){
+      const m=plush(['#b48eac','#82b5ad','#d99f74'][i],TX.knit);
+      const x=i===2?0:(i-.5)*.34,y=i===2?.43:.18;
+      blob(m,.185,.18,.175,x,y,0,g);
+      for(let j=0;j<4;j++)mesh(new THREE.TorusGeometry(.174,.009,6,24),m,g,x,y,0).rotation.set(.8,j*.5,.4);
+    }
+  },
+  jars(g){
+    for(let i=0;i<3;i++){
+      const x=(i-1)*.20,h=[.32,.50,.39][i];
+      mesh(new THREE.CylinderGeometry(.103,.102,h,18),flat(['#c58c74','#b395aa','#92ada0'][i]),g,x,h/2,0);
+      mesh(new THREE.CylinderGeometry(.112,.11,.035,18),flat('#e8d5b6'),g,x,h+.016,0);
+    }
+  }
+};
+const huntRooms = {
+  bedroom:[['pillows','За подушками'],['cloth','За пледом'],['book','За книжкой']],
+  kitchen:[['pot','За кастрюлей'],['kettle','За чайником'],['fruit','За фруктами']],
+  bath:[['cloth','За полотенцем'],['basket','За корзинкой'],['towels','За рулонами']],
+  balcony:[['leaves','За листьями'],['stool','За табуретом'],['watering','За лейкой']],
+  hall:[['boots','За сапогами'],['cloth','За шарфом'],['bag','За рюкзаком']],
+  pantry:[['yarn','За клубками'],['chest','За сундуком'],['jars','За банками']]
+};
+let huntTargets = [], peekingToy = null;
+function huntLayout(room, toy, hiddenAt, opened, found) {
+  const surface = TOP + .018;
+  huntTargets = huntRooms[room].map(([kind], i) => {
+    if (kind === 'chest') {
+      CHEST.lid.rotation.x = opened.has(i) ? -.95 : 0;
+      return CHEST.group;
+    }
+    const cover = add(new THREE.Group());
+    const colors = {bedroom:'#baa2c0', bath:'#a8c6dc', hall:'#cd957e'};
+    huntProps[kind](cover, colors[room]);
+    cover.position.set((i-1)*1.02, surface, room==='bath' ? .82 : .27);
+    cover.rotation.y = opened.has(i) ? -.58 : (i-1)*-.12;
+    return cover;
+  });
+  const solids = huntTargets.map(o=>new THREE.Box3().setFromObject(o));
+  const blockers = solids.slice();
+  const viewRay = new THREE.Ray();
+  const sightPoint = new THREE.Vector3(), hitPoint = new THREE.Vector3();
+  function inSight(bounds) {
+    bounds.getCenter(sightPoint);
+    // Проверяем грудь и верх головы. Нос или ухо над книжкой — подсказка для спрятавшегося.
+    for(const fraction of [.45,.78]){
+      sightPoint.y=THREE.MathUtils.lerp(bounds.min.y,bounds.max.y,fraction);
+      viewRay.origin.copy(camera.position);
+      viewRay.direction.subVectors(sightPoint,camera.position).normalize();
+      const distance=camera.position.distanceToSquared(sightPoint);
+      if(blockers.some(b=>viewRay.intersectBox(b,hitPoint) && camera.position.distanceToSquared(hitPoint)<distance))return false;
+    }
+    return true;
+  }
+  ROOMS[room].traverseVisible(o=>{
+    if (o.isMesh) {
+      // Ограничения только этого предмета, а не общий ящик всей комнаты.
+      o.updateWorldMatrix(true,false);
+      if (!o.geometry.boundingBox) o.geometry.computeBoundingBox();
+      solids.push(o.geometry.boundingBox.clone().applyMatrix4(o.matrixWorld));
+    }
+  });
+  function placeToy(id, scale, angle, wantX, wantZ, allowed) {
+    pose(id,{x:0,z:0,y:0,s:scale,ry:angle,eyes:'happy'});
+    const actor = H3[id].place;
+    const hero = H3[id];
+    hero.hop=hero.sq=hero.sqv=0;
+    hero.body.scale.setScalar(1);
+    hero.body.position.y=0; hero.body.rotation.z=0;
+    const shape = new THREE.Box3().setFromObject(actor);
+    const y = surface - shape.min.y;
+    const offset = new THREE.Vector3(), bounds = new THREE.Box3();
+    let best, distance = Infinity;
+    // Проверяется целая модель вместе с аксессуарами. Учитываем уже поставленных героев.
+    function consider(x,z) {
+      const cost = (x-wantX)**2 + (z-wantZ)**2;
+      if (cost >= distance) return;
+      bounds.copy(shape).translate(offset.set(x,y,z));
+      bounds.min.x-=.012; bounds.max.x+=.012;
+      bounds.min.z-=.012; bounds.max.z+=.012;
+      if (bounds.min.x < -1.7 || bounds.max.x > 1.7) return;
+      if (!allowed(bounds) || solids.some(s=>bounds.intersectsBox(s))) return;
+      best = [x,y,z]; distance = cost;
+    }
+    consider(wantX,wantZ);
+    for(let x=-1.80;x<=1.81;x+=.10)
+      for(let z=-.83;z<=1.41;z+=.10) consider(x,z);
+    if (!best) return false;
+    actor.position.set(...best);
+    actor.updateMatrixWorld(true);
+    const occupied=shape.clone().translate(actor.position);
+    solids.push(occupied);
+    blockers.push(occupied);
+    return true;
+  }
+  function fitToy(id, size, angle, x, z, allowed=()=>true) {
+    for (const factor of [1,.87,.74,.62]) {
+      if(placeToy(id,size*factor,angle,x,z,allowed))return;
+    }
+    pose(id,{visible:false});
+  }
+  if (hiddenAt == null) pose(toy,{visible:false});
+  else {
+    const cover = solids[hiddenAt], center = cover.getCenter(new THREE.Vector3());
+    const side = hiddenAt===2 ? -1 : 1;
+    const wantedX = found ? center.x + side*.37 : center.x + side*.15;
+    const wantedZ = found ? cover.max.z+.18 : cover.min.z-.2;
+    const allowed = b => found
+      ? (b.min.z >= cover.max.z || b.max.x < cover.min.x || b.min.x > cover.max.x)
+      : (b.max.z <= cover.min.z && b.max.x >= cover.min.x && b.min.x <= cover.max.x);
+    fitToy(toy,toy==='peng'?.36:.46,toy==='shket'?-1.15:0,wantedX,wantedZ,allowed);
+    if(!found)peekingToy={id:toy,spot:hiddenAt};
+  }
+  const companions = ['shket','manya','peng'].filter(id=>id!==toy);
+  companions.forEach((id,i)=>{
+    const side=i?1:-1;
+    fitToy(id,.54,id==='shket'?(i?-2.4:-.78):-side*.35,side*1.33,room==='bath'?.95:.36,inSight);
+  });
+}
 const P = {
   findItem(item, x, z) {
     const g = add(new THREE.Group());
     g.position.set(x, TOP, z);
-    const paint = plush(item.color, TX.plush, .8), cream = flat('#fff1d7');
+    const paint = plush(item.color, TX.plush, .8);
     if(item.kind==='pack'){g.add(rucksack());return g;}
     if(item.kind==='specs'){g.add(heartSpecs());g.children[0].position.y=.08;return g;}
     if(item.kind==='lamp'){
-      mesh(new THREE.CylinderGeometry(.13,.17,.07,24),cream,g,0,.035,0);
+      mesh(new THREE.CylinderGeometry(.13,.17,.07,24),flat('#fff1d7'),g,0,.035,0);
       seg(paint,[0,.07,0],[0,.27,0],.025,g);
       const star=new THREE.Shape();
       for(let i=0;i<10;i++){const a=Math.PI/2+i*Math.PI/5,r=i%2?.105:.21;star[i?'lineTo':'moveTo'](Math.cos(a)*r,Math.sin(a)*r);}star.closePath();
@@ -558,8 +766,17 @@ const P = {
       g.userData.water = mesh(new THREE.CylinderGeometry(.177,.177,.008,32), shiny('#82cee5'),g,0,.31,0);
       g.userData.water.visible = false;
     } else if (item.kind === 'ball') {
-      blob(paint,.19,.19,.19,0,.19,0,g);
-      mesh(new THREE.TorusGeometry(.185,.015,8,36),cream,g,0,.19,0).rotation.x=1.05;
+      // Центр вращения совпадает с центром сферы. Узор нанесён на её поверхность.
+      paint.color.setHex(0xffffff);
+      paint.map = canvasTex(256,128,(c,w,h)=>{
+        c.fillStyle=item.color; c.fillRect(0,0,w,h);
+        c.fillStyle='#fff1d7'; c.fillRect(0,32,w,5); c.fillRect(0,94,w,5);
+        c.font='28px sans-serif'; c.textAlign='center';
+        for(const x of [32,96,160,224]) c.fillText(item.mark,x,76);
+      });
+      blob(paint,BALL_RADIUS,BALL_RADIUS,BALL_RADIUS,0,0,0,g);
+      g.position.y += BALL_RADIUS;
+      return g;
     } else {
       const rug = item.kind === 'mat';
       blob(paint,rug ? .65 : .37,rug ? .04 : .13,rug ? .36 : .23,0,rug ? .04 : .13,0,g);
@@ -569,11 +786,11 @@ const P = {
     else badge.position.set(0,.18,item.kind==='cup'?.202:.192);
     return g;
   },
-  hidingPlaces(labels, opened) {
-    labels.forEach((label,i)=>{
-      const chest=P.box((i-1)*.94,.68,label,false,opened.includes(i));
-      chest.scale.setScalar(.82);chest.userData.spot=i;
-    });
+  penaltyBall(item) {
+    const ball = P.findItem(item,0,.91);
+    ball.position.y = HALL_TURF + BALL_RADIUS;
+    mesh(new THREE.BoxGeometry(.52,.003,.035),flat('#f8ddba'),add(new THREE.Group()),0,HALL_TURF+.0015,1.14);
+    return ball;
   },
   goals() {
     const g=add(new THREE.Group()), m=flat('#e8b776');
@@ -1302,7 +1519,7 @@ function buildHall() {
   [['#7fa9c4', -0.25], ['#e5a46a', 0.35]].forEach(([c, x]) => { blob(gold, 0.025, 0.025, 0.06, x, TOP + 1.95, -1.48, room); blob(plush(c, TX.plush, 0.9, '#ffffff'), 0.2, 0.42, 0.12, x, TOP + 1.55, -1.45, room); });
   const scarf = plush('#ffffff', null, 0.9); scarf.map = TX.stripes;
   blob(scarf, 0.06, 0.4, 0.04, 0.05, TOP + 1.6, -1.44, room);
-  const rug = mesh(new THREE.BoxGeometry(1.1, 0.015, 2.4), plush('#c0504d', TX.plush, 0.95, '#ffb0a8', 0.03), room, 0, TOP + 0.008, 0.1); rug.castShadow = false;
+  const rug = mesh(new THREE.BoxGeometry(1.1, HALL_RUG_THICKNESS, 2.4), plush('#c0504d', TX.plush, 0.95, '#ffb0a8', 0.03), room, 0, HALL_RUG_Y, 0.1); rug.castShadow = false;
   [[-2.0, '#5a7fb5'], [-1.75, '#ef8f8a']].forEach(([x, c]) => { for (const dz of [-0.07, 0.07]) blob(plush(c, null, 0.6), 0.1, 0.06, 0.05, x, TOP + 0.06, -1.25 + dz, room); });
   return room;
 }
@@ -1368,7 +1585,7 @@ function setTod(t, snow = false) {
 /* ---------- сборка сцены ---------- */
 let skyOpt = {};
 const API = {
-  TOP, P,
+  TOP, P, huntLayout,
   pose, sky(o) { Object.assign(skyOpt, o); },
   aim(dy) { aim = dy; },                 // опустить или поднять взгляд камеры на эту сцену
   heroPos(id) { return H3[id].place.position.clone(); },
@@ -1385,6 +1602,8 @@ function dispose(root) {
 }
 function stage(setup, ctx, room = 'bedroom') {
   setRoom(room);
+  huntTargets = [];
+  peekingToy = null;
   Object.values(H3).forEach(h => { h.walk = null; });
   walkCb = null;
   Object.assign(COOK, { bowl: null, fill: null, spoon: null, n: 0, dish: null, stirring: false });
@@ -1603,12 +1822,18 @@ window.WORLD = {
   setOutfit(o) { outfit = o || {}; },
   setHomeItems(items) { homeItems=items; },
   heroWorld(id) { return H3[id].place.position.clone(); },
+  hidingLabels(room) { return huntRooms[room].map(([,label])=>label); },
   hidingSpotAt(x,y){
     cast(x,y);
-    const targets=props.children.filter(o=>Number.isInteger(o.userData.spot));
-    const hit=ray.intersectObjects(targets,true)[0];if(!hit)return null;
-    let o=hit.object;while(o&&!Number.isInteger(o.userData.spot))o=o.parent;
-    return o?o.userData.spot:null;
+    const targets=huntTargets.slice();
+    if(peekingToy) targets.push(H3[peekingToy.id].place);
+    const hit=ray.intersectObjects(targets,true)[0];
+    for(let o=hit?.object;o;o=o.parent){
+      const index=huntTargets.indexOf(o);
+      if(index>=0)return index;
+      if(peekingToy && o===H3[peekingToy.id].place)return peekingToy.spot;
+    }
+    return null;
   },
   moveHeroX(id,x) { H3[id].place.position.x=x; },
   orbit(dx) { az = Math.max(-0.5, Math.min(0.5, az - dx * 0.005)); azV = -dx * 0.3; },

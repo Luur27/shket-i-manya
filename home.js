@@ -1,6 +1,6 @@
 /* Занятия доступны со страницы «Дела» и прямо из комнат. */
 window.HOME = {
-  init({state, save, S, stage, scene, caption, home, inGame, cook, snack, bedtime, say}) {
+  init({state, save, S, stage, scene, caption, home, inGame, cook, snack, readyDish, serveTo, bedtime, say}) {
     const $ = id => document.getElementById(id);
     const sheet = $('daySheet'), content = $('dayContent');
     const names = {shket:'Шкет',manya:'Маня',peng:'Пингвин'}, ids=Object.keys(names);
@@ -31,13 +31,71 @@ window.HOME = {
     }
     function heading(label){const h=document.createElement('h3');h.textContent=label;content.append(h);}
     function group(){const g=document.createElement('div');g.className='day-options';content.append(g);return g;}
-    function menuPage(title){content.replaceChildren();$('dayTitle').textContent=title;sheet.hidden=false;sheet.scrollTop=0;}
+    function menuPage(title){if(!active){cleanup();cleanup=()=>{};} content.replaceChildren();$('dayTitle').textContent=title;sheet.hidden=false;sheet.scrollTop=0;}
+    const percent = value => Math.max(0, Math.min(100, value));
+    function fullUntil(id) {
+      const r = care[id];
+      if (Number.isFinite(r.fullUntil)) return r.fullUntil;
+      return Math.max((state.fed[id]||0) + 10*hour, (r.meal||0) + 16*hour);
+    }
+    function levels(id, time=Date.now()) {
+      const r = care[id];
+      const waterUntil = r.drink + (r.played > r.drink ? 1 : 6)*hour;
+      const restUntil = r.rest + (r.played > (r.wakeAt || r.rest) ? 13 : 15)*hour;
+      const restAt = state.bedSince || time;
+      const beforeNap = percent(100*(restUntil-restAt)/(15*hour));
+      const napGain = state.bedSince ? 100*Math.max(0,time-restAt)/(2*hour) : 0;
+      return {
+        food: percent(100*(fullUntil(id)-time)/(16*hour)),
+        water: percent(100*(waterUntil-time)/(6*hour)),
+        sleep: percent(beforeNap+napGain)
+      };
+    }
     function statuses(id,t=Date.now()){
-      const r=care[id],fed=state.fed[id]||0;
-      const meal=Math.max(fed+10*hour,(r.meal||0)+16*hour);
-      const thirst=Math.max(r.drink+6*hour-(r.played>r.drink?5*hour:0),r.drink);
-      const energy=r.rest+15*hour-(r.played>r.rest?2*hour:0);
-      return {food: t>=meal?'Хочет есть':'Сыт'+(id==='manya'?'а':''),water:t>=thirst?'Хочет пить':'Напил'+(id==='manya'?'ась':'ся'),sleep:state.bedSince?'Спит':t>=energy?'Клонит в сон':'Бодр'+(id==='manya'?'а':'')};
+      const value=levels(id,t);
+      return {
+        food: value.food <= 20 ? 'Хочет есть' : (id==='manya'?'Сыта':'Сыт'),
+        water: value.water <= 20 ? 'Хочет пить' : (id==='manya'?'Напилась':'Напился'),
+        sleep: state.bedSince?'Спит':value.sleep <= 20?'Клонит в сон':(id==='manya'?'Бодра':'Бодр')
+      };
+    }
+    function renderMeters(id) {
+      const panel=document.createElement('div');
+      panel.className='care-meters';
+      const update=[];
+      for(const [kind,title] of [['food','Сытость'],['water','Запас воды'],['sleep','Бодрость']]){
+        const label=document.createElement('label'), name=document.createElement('span');
+        const count=document.createElement('span'), meter=document.createElement('progress');
+        label.className='care-meter';
+        label.dataset.need=kind;
+        name.textContent=title;
+        meter.max=100;
+        meter.setAttribute('aria-label',names[id]+' · '+title);
+        label.append(name,count,meter);
+        panel.append(label);
+        update.push(values=>{
+          const n=Math.round(values[kind]);
+          count.textContent=n+'%';
+          meter.value=n;
+        });
+      }
+      content.append(panel);
+      function refresh(){const values=levels(id);update.forEach(draw=>draw(values));}
+      refresh();
+      const timer=setInterval(()=>{if(!document.hidden)refresh();},15000);
+      cleanup=()=>clearInterval(timer);
+    }
+    function treatMenu(id) {
+      menuPage('Угощаем '+({shket:'Шкета',manya:'Маню',peng:'Пингвина'}[id]));
+      const ready=readyDish();
+      if(ready)button(content,'Подать: '+ready,()=>{cancel();serveTo(id);},'pill wide');
+      button(content,ready?'Приготовить другое блюдо':'Приготовить блюдо',()=>{cancel();cook(id);},ready?'ghost-btn':'pill wide');
+      heading('Быстрый перекус');
+      const list=group();
+      for(const food of S.FOODS){
+        button(list,food.name,()=>{cancel();snack(id,food.id);});
+      }
+      button(content,'Назад',menu,'ghost-btn');
     }
     let invited=chosen;
     function invitation(){
@@ -55,9 +113,9 @@ window.HOME = {
       cancel();menuPage('Дома с тобой');
       const toys=group();toys.classList.add('day-toys');
       for(const id of ids){const b=pictureButton(toys,id,names[id],()=>{chosen=id;menu();});b.setAttribute('aria-pressed',id===chosen);}
-      const labels=statuses(chosen),p=document.createElement('p');p.className='day-needs';p.textContent=Object.values(labels).join(' · ');content.append(p);
+      renderMeters(chosen);
       const careBtns=group();
-      button(careBtns,'Напоить',()=>water(chosen));button(careBtns,'Угостить',()=>{cancel();snack(chosen);});
+      button(careBtns,'Напоить',()=>water(chosen));button(careBtns,'Угостить',()=>treatMenu(chosen));
       button(careBtns,state.bedSince?'Разбудить':'Уложить спать',()=>{
         if(state.bedSince){cancel();bedtime();return;}
         menuPage('Кого положим рядом с Ветой?');const places=group();
@@ -133,45 +191,62 @@ window.HOME = {
       cleanup=stop;
       handle=act=>{
         if(act!=='day-serve'||amount<1)return;
+        const before=Math.round(levels(id).water);
         handle=()=>{};care[id].drink=Date.now();save();
         cup.position.set(.24,.37,.22);cup.rotation.z=-.28;cup.userData.water.visible=false;WORLD.react(id,'chomp');
-        caption(names[id],({peng:'Вот теперь можно и второй тайм.',manya:'Бе-е… спасибо. Как раз такую водичку хотелось.',shket:'Один глоточек. И ещё один большой глоточек.'})[id],[['day-morewater','Напоить ещё кого-нибудь']]);handle=act=>{if(act==='day-morewater')menu();};
+        caption(names[id],({peng:'Вот теперь можно и второй тайм.',manya:'Бе-е… спасибо. Как раз такую водичку хотелось.',shket:'Один глоточек. И ещё один большой глоточек.'})[id]+' Запас воды '+before+' → 100%.',[['day-morewater','Напоить ещё кого-нибудь']]);handle=act=>{if(act==='day-morewater')menu();};
       };
       b.onclick=e=>{if(e.detail===0&&amount<1){pour(.25);stop();}};
     }
-    const spots=[
-      ['bedroom','Там лежат подушки.',['За подушкой','Под пледом','В коробке']],
-      ['kitchen','Там пахнет блинчиками.',['За кастрюлей','У чайника','За скатертью']],
-      ['bath','Слышно, как капает вода.',['За полотенцем','У ванны','За корзиной']],
-      ['balcony','Ветер шевелит листья.',['За горшком','У перил','За лейкой']],
-      ['hall','На стене кто-то видит своё отражение.',['За шарфом','У зеркала','У двери']],
-      ['pantry','Кто-то шуршит среди запасов.',['За сундуком','За коробкой','За метлой']]
-    ];
+    const clues = {
+      bedroom:'Там лежат подушки.', kitchen:'Там пахнет блинчиками.',
+      bath:'Слышно, как капает вода.', balcony:'Ветер шевелит листья.',
+      hall:'На стене кто-то видит своё отражение.', pantry:'Кто-то шуршит среди запасов.'
+    };
     let lastHunt='';
     function hunt(){
-      const target=S.pick(ids),goal=S.pick(spots);
-      let place=Math.floor(Math.random()*3);
-      if(lastHunt===target+goal[0]+place)place=(place+1)%3;
-      lastHunt=target+goal[0]+place;
-      const searched=new Set();
-      function look(room){
-        const row=spots.find(x=>x[0]===room),roomName=S.ROOMS.find(x=>x.id===room).name;
-        begin(room,W=>{S.LAYOUT[room](W);W.pose(target,{visible:false});W.P.hidingPlaces(row[2], [0,1,2].filter(i=>searched.has(room+i)));});
+      const target=S.pick(ids), goal=S.pick(Object.keys(clues));
+      let place=Math.floor(Math.random()*WORLD.hidingLabels(goal).length);
+      if(lastHunt===target+goal+place) place=(place+1)%WORLD.hidingLabels(goal).length;
+      lastHunt=target+goal+place;
+      const searched=new Map();
+      function look(room, found=false) {
+        const checked=searched.get(room)||new Set();
+        searched.set(room,checked);
+        begin(room,W=>W.huntLayout(room,target,room===goal?place:null,checked,found));
+        if(found){
+          WORLD.react(target,'hop');
+          caption('Нашла!',names[target]+' выбирается из укрытия. «Я просто гулял! Женя же написал».',[['day-again','Спрятать снова']]);
+          handle=a=>{if(a==='day-again')hunt();};
+          return;
+        }
         const tap=e=>{const i=WORLD.hidingSpotAt(e.clientX,e.clientY);if(i!==null)handle('day-look'+i);};
-        stage.addEventListener('click',tap);cleanup=()=>stage.removeEventListener('click',tap);
-        caption(roomName,'Женя оставил записку «Ушли гулять». Ищем '+({shket:'Шкета',manya:'Маню',peng:'Пингвина'}[target])+'. '+goal[1],
-          [...row[2].map((label,i)=>['day-look'+i,(searched.has(room+i)?'✓ ':'')+label]),['day-map','В другую комнату']]);
+        stage.addEventListener('click',tap);
+        cleanup=()=>stage.removeEventListener('click',tap);
+        const labels=WORLD.hidingLabels(room);
+        const buttons=labels.map((label,i)=>['day-look'+i,(checked.has(i)?'✓ ':'')+label]);
+        buttons.push(['day-map','В другую комнату']);
+        caption(S.ROOMS.find(r=>r.id===room).name,'Женя оставил записку «Ушли гулять». '+clues[goal]+' Ищем '+({shket:'Шкета',manya:'Маню',peng:'Пингвина'}[target])+'.',buttons);
         handle=act=>{
-          if(act==='day-map'){menuPage('Куда заглянем?');const list=group();for(const r of S.ROOMS)button(list,r.name,()=>look(r.id));return;}
-          if(!act.startsWith('day-look'))return;
-          const i=Number(act.slice(-1));searched.add(room+i);
-          if(row===goal&&i===place){
-            begin(room,W=>{S.LAYOUT[room](W);W.P.hidingPlaces(row[2],[i]);W.pose(target,{x:(i-1)*.94,z:.48,y:W.TOP+.16,s:.56,eyes:'happy'});W.P.hearts([[(i-1)*.94,1.55,.48]]);});WORLD.react(target,'hop');
-            caption('Нашла!',names[target]+' выглядывает. «Я просто гулял! Женя же написал».',[['day-again','Спрятать снова']]);handle=a=>{if(a==='day-again')hunt();};
-          }else {look(room);say(ids.find(k=>k!==target),row===goal?'Теплее! Где-то здесь шуршит.':'Тут пусто. В записке есть подсказка.');}
+          if(act==='day-map'){
+            menuPage('Куда заглянем?');
+            const list=group();
+            for(const r of S.ROOMS)button(list,r.name,()=>look(r.id));
+          }else if(act.startsWith('day-look')){
+            const i=Number(act.slice('day-look'.length));
+            checked.add(i);
+            const hit=room===goal && i===place;
+            look(room,hit);
+            if(!hit)say(ids.find(k=>k!==target),room===goal?'Теплее! Где-то здесь шуршит.':'Тут пусто. В записке есть подсказка.');
+          }
         };
       }
       look('bedroom');
+    }
+    function pickGuest(){
+      menuPage('Кому подать блюдо?');
+      const list=group();
+      for(const id of ids)button(list,names[id],()=>{chosen=id;cancel();serveTo(id);});
     }
     function pickDrink(){
       menuPage('Кому налить воды?');const list=group();
@@ -182,25 +257,35 @@ window.HOME = {
       begin('hall',W=>{
         W.pose('peng',{x:0,z:-.48,s:.52,flips:['out','out']});
         W.pose('shket',{x:-1.35,z:-.12,ry:-1.5,s:.64});W.pose('manya',{x:1.35,z:-.1,s:.68,arms:['wave','down']});
-        W.P.goals();sphere=W.P.findItem(selected('ball',owner),0,.91);
+        W.P.goals();sphere=W.P.penaltyBall(selected('ball',owner));
       });
+      const spot = sphere.position.clone();
+      let returning = null;
       function score(text){caption('Ворота Пингвина',text+' · Голы '+goals+' из '+shots+' · Рекорд '+(state.ballBest||0),[['day-left','Влево'],['day-mid','По центру'],['day-right','Вправо']]);}
       score('Проведи пальцем вверх в сторону ворот. Длиннее взмах — сильнее бросок');
-      function shoot(x,power){if(flight)return;flight={x,power,t:0};}
+      function shoot(x,power){if(flight || returning)return;flight={x,power,t:0};}
       function tick(t){
         const dt=last?Math.min(.05,(t-last)/1000):0;last=t;clock+=dt;
         keeper=.72*Math.sin(clock*1.65);WORLD.moveHeroX('peng',keeper);
         if(flight){
           flight.t=Math.min(1,flight.t+dt*(1.4+flight.power*.8));const f=flight.t;
-          sphere.position.set(flight.x*f,.175+Math.sin(Math.PI*f)*(.22+.46*flight.power),.91-f*1.4*flight.power);
+          sphere.position.set(flight.x*f,spot.y+Math.sin(Math.PI*f)*(.22+.46*flight.power),spot.z-f*1.4*flight.power);
           sphere.rotation.x-=dt*8;
           if(f===1){
             const wide=Math.abs(flight.x)>.97,short=flight.power<.86,saved=Math.abs(flight.x-keeper)<.34,goal=!wide&&!short&&!saved;
             shots++;if(goal)goals++;state.ballBest=Math.max(state.ballBest||0,goals);care.peng.played=Date.now();save();
             WORLD.react(goal?'manya':short||wide?'shket':'peng','hop');
             score(goal?'Гол! Маня уже считает на копытцах':short?'Шкет подобрал недокатившийся мяч':wide?'Мимо штанги! Шкет возвращает мяч':'Пингвин поймал! Ещё удар?');
-            sphere.position.set(0,.175,.91);flight=null;
+            returning = {start:sphere.position.clone(),elapsed:0};
+            flight = null;
           }
+        } else if (returning) {
+          returning.elapsed += dt;
+          const progress = Math.min(1, returning.elapsed / .55);
+          const smooth = progress * progress * (3 - 2 * progress);
+          sphere.position.lerpVectors(returning.start, spot, smooth);
+          sphere.rotation.x += dt * 7 * (1 - progress);
+          if (progress === 1) { sphere.position.copy(spot); returning = null; }
         }
         raf=requestAnimationFrame(tick);
       }
@@ -212,12 +297,27 @@ window.HOME = {
       cleanup=()=>{cancelAnimationFrame(raf);stage.removeEventListener('pointerdown',start);stage.removeEventListener('pointerup',end);stage.removeEventListener('pointercancel',abort);};
       handle=a=>{const x={'day-left':-.72,'day-mid':0,'day-right':.72}[a];if(x!==undefined)shoot(x,1);};
     }
-    function meal(id,drink){const t=Date.now();state.fed[id]=t;care[id].meal=t;if(drink)care[id].drink=t;}
+    function giveSnack(id) {
+      const t=Date.now();
+      const remaining=Math.max(0,fullUntil(id)-t);
+      care[id].fullUntil=t+Math.min(16*hour,remaining+6*hour);
+      state.fed[id]=t;
+    }
+    function meal(id,drink) {
+      const t=Date.now();
+      state.fed[id]=t;
+      care[id].meal=t;
+      care[id].fullUntil=t+16*hour;
+      if(drink) care[id].drink=t;
+    }
     function sleep(){if(!state.bedSince)state.bedSince=Date.now();save();}
     function wake(){
       if(!state.bedSince)return;
-      const t=Date.now(),nap=Math.max(0,t-state.bedSince);
-      for(const id of ids)care[id].rest=Math.min(t,Math.max(t-15*hour,care[id].rest)+nap*8);
+      const t=Date.now();
+      for(const id of ids){
+        care[id].rest=t-(1-levels(id,t).sleep/100)*15*hour;
+        care[id].wakeAt=t;
+      }
       state.bedSince=0;save();
     }
     function tidyAfterAbsence(){
@@ -227,7 +327,7 @@ window.HOME = {
       }
       return false;
     }
-    $('btnDay').onclick=menu;$('dayClose').onclick=()=>{sheet.hidden=true;if(inGame())home();};
-    return {menu,invitation,accept(){chosen=invited;menu();},shelf,pickDrink,water,hunt,ball,story,action,cancel,meal,sleep,wake,statuses,tidyAfterAbsence,selected,get active(){return active;}};
+    $('btnDay').onclick=menu;$('dayClose').onclick=()=>{cancel();if(inGame())home();};
+    return {menu,invitation,accept(){chosen=invited;menu();},shelf,pickDrink,pickGuest,water,hunt,ball,story,action,cancel,giveSnack,meal,sleep,wake,levels,statuses,tidyAfterAbsence,selected,get active(){return active;}};
   }
 };

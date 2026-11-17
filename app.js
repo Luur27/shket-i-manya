@@ -7,7 +7,6 @@ const S = window.SCENES_API, CFG = S.CONFIG, WD = window.WORLD;
 const $ = id => document.getElementById(id);
 const KEY = 'shket-manya:v1';
 const AWAY_MS = 2 * 60 * 1000;           // вернулась позже, чем через 2 минуты, — новая сцена
-const HUNGRY_MS = 10 * 3600 * 1000;
 
 /* отладка: ?scene=box&variant=resolved&tod=night&date=2026-11-19&away=40&all=1&reset=1&room=kitchen */
 const q = new URLSearchParams(location.search);
@@ -94,8 +93,20 @@ const day = HOME.init({
     roomChange++; curtain.classList.remove('on'); if(state.bedSince)day.wake(); closeTray(); room=id; mode='home'; game=cook=bath=null;
     setChrome(todOf(now())); WD.stage(setup,ctxNow({}),room); renderBar();
   },
-  cook: () => enterRoom('kitchen',startCook),
-  snack: id => enterRoom('kitchen',()=>{openTray('food');setCaption('Перекус',`Выбери угощение и коснись игрушки. Угощаем ${NAME[id]}.`);}),
+  cook: guest => enterRoom('kitchen',()=>startCook(guest)),
+  readyDish: () => room==='kitchen' && cook?.step==='serve' ? cook.recipe.name : '',
+  serveTo: id => {
+    if(room!=='kitchen' || cook?.step!=='serve')return;
+    cook.guest=id;
+    eatDish(true);
+  },
+  snack: (id,food) => enterRoom('kitchen',()=>{
+    const before=Math.round(day.levels(id).food);
+    feed(id,food);
+    const after=Math.round(day.levels(id).food);
+    const reaction=S.LIKES[id][food]>0?'Угощение принято.':'Сегодня хочется чего-то другого.';
+    setCaption('Перекус',reaction+' Сытость '+before+' → '+after+'%.',{buttons:[['care-menu','К делам']]});
+  }),
   bedtime: () => { if(mode==='sleep')wakeUp();else toggleSleep(); },
 });
 function ctxNow(extra) {
@@ -377,7 +388,7 @@ function talk(id) {
   const needs=day.statuses(id);
   if(needs.water==='Хочет пить' && Math.random()<.4) {say(id,'Можно водички? Загляни в «Дела».');return;}
   if(needs.sleep==='Клонит в сон' && Math.random()<.25){say(id,'Я бы уже под одеяло…');return;}
-  const hungry = needs.food==='Хочет есть' && (!state.fed[id] || Date.now() - state.fed[id] > HUNGRY_MS);
+  const hungry = needs.food==='Хочет есть';
   let pool = hungry && Math.random() < 0.3 ? S.HUNGRY[id] : S.TALK[id];
   if (id === 'peng' && (state.pengHugs || 0) >= 3 && Math.random() < 0.4) pool = S.PENG_WARM;   // оттаял
   WD.react(id, 'squish');
@@ -517,7 +528,11 @@ function openTray(kind) {
 function setPicked(id) {
   picked = id ? { tray: trayKind, id } : null;
   items.querySelectorAll('.food').forEach(b => b.classList.toggle('picked', b.dataset.item === id));
-  if (trayKind) $('trayHint').textContent = HINT[trayKind][id ? 1 : 0];
+  if (trayKind) {
+    const hint=HINT[trayKind][id ? 1 : 0];
+    $('trayHint').textContent=cook?.guest && (trayKind==='recipe' || trayKind==='ing')
+      ? 'Угощаем '+NAME[cook.guest]+'. '+hint : hint;
+  }
 }
 $('trayClose').addEventListener('click', closeTray);
 
@@ -572,10 +587,10 @@ function feed(id, food) {
   WD.react(id, like > 0 ? 'chomp' : 'squish');
   say(id, fill(S.pick(S.FEED[id][like])));
   if (like > 0) {
-    state.fed[id] = Date.now();
+    day.giveSnack(id);
     burst(id, like === 2 ? 5 : 2);
     const sc = S.byId[state.cur.id];
-    if (mode === 'scene' && sc.resolved && !state.cur.variant && sc.resolved.char === id) {
+    if (mode === 'scene' && sc?.resolved && !state.cur.variant && sc.resolved.char === id) {
       state.cur.variant = 'resolved';
       setTimeout(() => { if (mode === 'scene') { restage(); $('story').textContent = sc.resolved.text(ctxNow({})); } }, 900);
     }
@@ -605,12 +620,12 @@ function wear(id, item) {
 }
 
 /* ---------- кухня: готовим вместе ---------- */
-function startCook() {
+function startCook(guest=null) {
   closeTray();
   mode = 'cook';
-  cook = { step: 'choose', recipe: null, added: [], stir: 0, look: null };
+  cook = { step: 'choose', guest, recipe: null, added: [], stir: 0, look: null };
   S.LAYOUT.kitchen(WD);
-  setCaption('Готовим', 'Шкет любит пирог, Маня — салат, Пингвин — котлетки, а блинчики — все.', { buttons: [['endcook', 'Хватит']] });
+  setCaption('Готовим', guest ? 'Выбери блюдо, чтобы угостить '+NAME[guest]+'.' : 'Шкет любит пирог, Маня — салат, Пингвин — котлетки, а блинчики — все.', { buttons: [['endcook', 'Хватит']] });
   renderBar();
   openTray('recipe');
 }
@@ -675,27 +690,40 @@ function serveDish() {
   WD.cook.serve(cook.recipe.id);
   S.KITCHEN_LOOK.dish(WD);
   say(S.pick(['manya', 'shket', 'peng']), S.pick(S.COOK_LINES.done));
-  setCaption(cook.recipe.name, `Готово! ${cook.recipe.name} — пальчики оближешь. Угостить всех?`, { buttons: [['eat', 'Угостить'], ['more', 'Другой рецепт']] });
+  const buttons = [];
+  if(cook.guest)buttons.push(['eat-one','Подать '+DATIVE[cook.guest]]);
+  else buttons.push(['choose-guest','Выбрать игрушку']);
+  buttons.push(['eat','Угостить всех'],['more','Другой рецепт']);
+  setCaption(cook.recipe.name,'Готово! Можно подавать к столу.',{buttons});
 }
-function eatDish() {
-  const r = cook.recipe;
-  for(const id of TOYS) if(r.likes[id]>0)day.meal(id,r.drink);
-  const session=cook;
-  WD.cook.eat();
-  ['manya', 'shket', 'peng'].forEach((id, i) => setTimeout(() => {
-    if(cook!==session)return;
-    const like = r.likes[id];
-    WD.react(id, like > 0 ? 'chomp' : 'squish');
-    say(id, fill(S.pick(S.FEED[id][like])));
-    if (like > 0) burst(id, like === 2 ? 4 : 2);
-  }, 400 + i * 900));
-  state.cooked[r.id] = (state.cooked[r.id] || 0) + 1;
+const DATIVE = {shket:'Шкету',manya:'Мане',peng:'Пингвину'};
+function eatDish(personal=false) {
+  if(cook?.step!=='serve')return;
+  const session=cook, recipe=session.recipe;
+  const guest=personal?session.guest:null;
+  if(guest && recipe.likes[guest]===0) {
+    say(guest,'Спасибо! А можно мне что-нибудь другое?');
+    setCaption(recipe.name,'Блюдо осталось на столе. Можно поделиться или выбрать другой рецепт.',
+      {buttons:[['eat','Угостить всех'],['more','Другой рецепт']]});
+    return;
+  }
+  const guests=guest?[guest]:TOYS;
+  const before=guest?Math.round(day.levels(guest).food):0;
+  session.step='done';
+  session.look=null;
+  for(const id of guests)if(recipe.likes[id]>0)day.meal(id,recipe.drink);
+  state.cooked[recipe.id]=(state.cooked[recipe.id]||0)+1;
   save();
-  cook.step = 'done'; cook.look = null;
-  setTimeout(() => { if (cook===session && cook.step==='done') S.LAYOUT.kitchen(WD); }, 3200);
-  const total = Object.values(state.cooked).reduce((a, b) => a + b, 0);
-  const afterMeal=r.drink?'Все напились и перекусили.':'Угощение готово. Можно готовить ещё!';
-  setCaption(r.name, `${afterMeal} Вместе приготовили блюд: ${total}.`, { buttons: [['more', 'Ещё рецепт'], ['endcook', 'Хватит']] });
+  WD.cook.eat();
+  guests.forEach((id,i)=>setTimeout(()=>{
+    if(cook!==session)return;
+    const like=recipe.likes[id];
+    WD.react(id,like?'chomp':'squish');
+    say(id,fill(S.pick(S.FEED[id][like])));
+    if(like)burst(id,like===2?4:2);
+  },i*700));
+  const summary=guest ? 'Угостили '+NAME[guest]+'. Сытость '+before+' → 100%.' : 'Все, кому понравилось блюдо, поели.';
+  setCaption(recipe.name,summary+(recipe.drink?' Коктейль утолил жажду.':''),{buttons:[['care-menu','К делам'],['more','Ещё рецепт'],['endcook','Хватит']]});
 }
 function endCook() {
   closeTray();
@@ -870,7 +898,7 @@ function openChest() {
     save();
     WD.room.chest(true, null);
     TOYS.forEach((id,i)=>{
-      state.fed[id]=Date.now();
+      day.giveSnack(id);
       setTimeout(()=>{if(room==='pantry'){WD.react(id,'chomp');burst(id,2);}},600+i*400);
     });
     say('shket', L.pantry.treat);
@@ -928,6 +956,7 @@ $('gameBtns').addEventListener('click', e => {
   if (!b) return;
   const act = b.dataset.act;
   if(mode==='home')return day.action(act);
+  if(act==='care-menu')return day.menu();
   if(act==='finds')return day.shelf();
   if(act==='join-story')return day.story(state.cur.id);
   if(act==='day-needs')return day.accept();
@@ -946,8 +975,13 @@ $('gameBtns').addEventListener('click', e => {
     else endRoomMode();
   } else if (mode === 'cook') {
     if (act === 'stir') { WD.cook.stir(true); setTimeout(() => WD.cook.stir(false), 600); stirBy(200); }
-    else if (act === 'eat') eatDish();
-    else if (act === 'more') { cook = { step: 'choose', recipe: null, added: [], stir: 0, look: null }; WD.stage(S.LAYOUT.kitchen, ctxNow({}), 'kitchen'); setCaption('Готовим', 'Что приготовим теперь?', { buttons: [['endcook', 'Хватит']] }); openTray('recipe'); }
+    else if (act === 'choose-guest' && cook.step==='serve')day.pickGuest();
+    else if (act === 'eat' || act === 'eat-one') eatDish(act==='eat-one');
+    else if (act === 'more') {
+      const guest=cook.guest;
+      WD.stage(S.LAYOUT.kitchen,ctxNow({}),'kitchen');
+      startCook(guest);
+    }
     else if (act === 'endcook') endCook();
   }
 });
