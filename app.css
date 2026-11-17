@@ -52,6 +52,27 @@ button { font: inherit; color: inherit; }
   padding-left: env(safe-area-inset-left, 0px);
   padding-right: env(safe-area-inset-right, 0px);
 }
+.day-btn { align-content:center; color:var(--accent); font-size:18px; line-height:1; }
+.day-btn small {font:600 10px var(--font-ui);color:var(--ink)}
+#daySheet .sheet-head {justify-content:space-between}
+#dayContent .day-toys,#dayContent .day-stories,#dayContent .day-games {display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}
+#dayContent .day-toys {grid-template-columns:repeat(3,minmax(0,1fr))}
+.day-card {border:1.5px solid var(--line);border-radius:16px;overflow:hidden;padding:0 0 8px;background:var(--paper);font:400 18px/1.15 var(--font-hand)}
+.day-card img {width:100%;display:block;aspect-ratio:16/9;object-fit:cover;margin-bottom:6px}
+.day-toys img {aspect-ratio:1.55;object-position:50% 48%}
+.day-options .mini:first-child {background:var(--paper);color:var(--ink);border-color:var(--line)}
+#dayContent .day-options [aria-pressed="true"] {background:var(--accent);color:var(--accent-ink)}
+#gameBtns {flex-wrap:wrap}
+#gameBtns .mini {min-width:70px}
+#daySheet .day-needs {padding:10px 12px;border-bottom:1px solid var(--line);margin:0 0 12px}
+#daySheet .day-games .mini {border-radius:14px;background:var(--paper);color:var(--ink);border-color:var(--line)}
+#dayContent h3 {font:400 23px var(--font-hand);margin:18px 0 8px}
+.day-options {display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 14px}
+.day-options button {min-height:42px}
+.day-options [aria-pressed="true"] {background:var(--accent);color:var(--accent-ink)}
+.day-needs {font:400 22px var(--font-hand)}
+.mini.pouring {background:linear-gradient(to right,#82cce0 var(--fill),var(--paper) var(--fill));touch-action:none}
+#items {max-height:29dvh;overflow-y:auto}
 .top {
   display: flex;
   align-items: center;

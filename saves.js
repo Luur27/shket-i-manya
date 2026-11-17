@@ -29,6 +29,17 @@ function decode(text) {
   for (const key of ['last', 'visits', 'hideBest', 'photos', 'pengHugs']) {
     if (data[key] !== undefined && (!Number.isFinite(data[key]) || data[key] < 0)) throw new Error('Файл сохранения повреждён.');
   }
+  if(data.care!==undefined){
+    if(!isObject(data.care)) throw new Error('Повреждены данные о заботе.');
+    for(const toy of Object.values(data.care)){
+      if(!isObject(toy)||Object.values(toy).some(v=>!Number.isFinite(v)||v<0)) throw new Error('Повреждены данные о заботе.');
+    }
+  }
+  if(data.bedCompanion!==undefined && !['manya','shket','peng'].includes(data.bedCompanion))throw new Error('Повреждены данные сна.');
+  if(data.homeItems!==undefined && (!isObject(data.homeItems)||Object.values(data.homeItems).some(v=>typeof v!=='string'))) throw new Error('Повреждены данные находок.');
+  for(const key of ['bedSince','ballBest']){
+    if(data[key]!==undefined && (!Number.isFinite(data[key])||data[key]<0))throw new Error('Повреждены данные занятий.');
+  }
   return data;
 }
 function init(adapter) {

@@ -25,6 +25,7 @@
       <h1>Шкет и Маня</h1>
       <p class="together" id="together"></p>
     </div>
+    <button class="icon-btn day-btn" type="button" id="btnDay" aria-label="Забота и игры">♥<small>Дела</small></button>
     <button class="icon-btn" id="btnRooms" type="button" aria-label="Комнаты">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 11L12 4l8.5 7"/><path d="M5.5 9.5V20h13V9.5"/><path d="M10 20v-5.5h4V20"/></svg>
     </button>
@@ -57,6 +58,10 @@
   <nav class="bar" id="bar" aria-label="Что сделать"></nav>
 </div>
 
+<section class="sheet" id="daySheet" aria-labelledby="dayTitle" hidden>
+  <div class="sheet-inner"><div class="sheet-head"><div><h2 id="dayTitle">Дома с тобой</h2></div><button type="button" class="ghost-btn" id="dayClose">Закрыть</button></div>
+  <div id="dayContent"></div></div>
+</section>
 <div class="sheet" id="album" hidden>
   <div class="sheet-inner">
     <div class="sheet-head">
@@ -140,8 +145,10 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="world.js"></script>
 <script src="scenes.js"></script>
+<script src="home-content.js"></script>
 <script src="saves.js"></script>
 <script src="cinema.js"></script>
+<script src="home.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

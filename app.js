@@ -87,6 +87,20 @@ const cinema = window.CINEMA.init(S.FILM, covered => WD.setPaused(covered));
 
 /* ---------- режимы: сцена дня (спальня), просто комната, прятки, сон, готовка ---------- */
 let room = 'bedroom', mode = 'scene', game = null, cook = null, bath = null, popped = 0;
+let roomChange = 0;
+const day = HOME.init({
+  state, save, S, stage, say, caption: (label,text,buttons)=>setCaption(label,text,{buttons}), home:()=>show(false), inGame:()=>mode==='home',
+  scene(id,setup) {
+    roomChange++; curtain.classList.remove('on'); if(state.bedSince)day.wake(); closeTray(); room=id; mode='home'; game=cook=bath=null;
+    setChrome(todOf(now())); WD.stage(setup,ctxNow({}),room); renderBar();
+  },
+  cook: () => enterRoom('kitchen',startCook),
+  snack: id => enterRoom('kitchen',()=>{openTray('food');setCaption('Перекус',`Выбери угощение и коснись игрушки. Угощаем ${NAME[id]}.`);}),
+  bedtime: () => { if(mode==='sleep')wakeUp();else toggleSleep(); },
+  markSeen(id) {
+    if(!state.seen[id]){state.seen[id]=Date.now();state.fresh.push(id);save();updateBadge();}
+  }
+});
 function ctxNow(extra) {
   const d = now();
   return S.makeCtx(Object.assign({ tod: todOf(d), now: d, seed: state.cur ? state.cur.seed : Math.random(), visits: state.visits }, extra));
@@ -103,6 +117,7 @@ function setCaption(label, story, opts = {}) {
 }
 function closeTray() { tray.hidden = true; trayKind = null; setPicked(null); }
 function show(fade) {
+  roomChange++; day.cancel(); curtain.classList.remove('on');
   room = 'bedroom'; mode = 'scene'; game = null; cook = null;
   closeTray();
   const sc = S.byId[state.cur.id] || S.byId.cuddle;
@@ -112,7 +127,7 @@ function show(fade) {
   if (fade) { stage.classList.remove('fade'); void stage.offsetWidth; stage.classList.add('fade'); }
   const note = sc.note ? sc.note(ctx) : '';
   const film = S.FILMS[sc.film || sc.id];
-  setCaption(state.cur.label, state.cur.variant && sc.resolved ? sc.resolved.text(ctx) : sc.text(ctx), { isNew: state.cur.isNew, note, sign: ctx.sign, buttons: film ? [['film', 'Смотреть мультик']] : null });
+  setCaption(state.cur.label, state.cur.variant && sc.resolved ? sc.resolved.text(ctx) : sc.text(ctx), { isNew: state.cur.isNew, note, sign: ctx.sign, buttons: film ? [['film', 'Смотреть мультик']] : sc.activity ? [['join-story','Присоединиться']] : [['day-needs',day.invitation()]] });
   const days = S.daysTogether(now());
   $('together').textContent = `вместе ${days} ${S.plural(days, ['день', 'дня', 'дней'])}`;
   renderBar();
@@ -121,7 +136,7 @@ function show(fade) {
 /* перерисовать после переодевания: в спальне — сцену целиком, на кухне — только позы (чтобы не пропала миска) */
 function restage() {
   if (mode === 'hide') WD.stage(S.hideSetup(game.spot), ctxNow({}), 'bedroom');
-  else if (mode === 'sleep') WD.stage(S.sleepSetup, ctxNow({}), 'bedroom');
+  else if (mode === 'sleep') WD.stage(bedSetup, ctxNow({}), 'bedroom');
   else if (mode === 'morning') WD.stage(S.morningSetup, ctxNow({ fixed: morning }), 'bedroom');
   else if (mode === 'scene') { const sc = S.byId[state.cur.id] || S.byId.cuddle; WD.stage(sc.setup, ctxNow({ variant: state.cur.variant, away: state.cur.away }), 'bedroom'); }
   else if (room === 'kitchen') (cook && cook.look ? S.KITCHEN_LOOK[cook.look] : S.LAYOUT.kitchen)(WD);
@@ -131,14 +146,18 @@ function restage() {
 
 /* ---------- комнаты: план квартиры, переход со шторкой, трое заходят по очереди ---------- */
 const curtain = $('curtain');
-function enterRoom(id) {
+function enterRoom(id, afterEntry) {
   const r = S.ROOMS.find(x => x.id === id);
   if (!r || !r.ready) return;
   closeTray();
+  const transition=++roomChange;
+  day.cancel();
+  if(mode==='sleep')day.wake();
   $('rooms').hidden = true;
   $('curtainName').textContent = r.name;
   curtain.classList.add('on');
   setTimeout(() => {
+    if(transition!==roomChange)return;
     room = id; mode = 'idle'; game = null; cook = null; bath = null;
     const ctx = ctxNow({});
     setChrome(ctx.tod);
@@ -146,6 +165,7 @@ function enterRoom(id) {
     if (id === 'balcony') WD.room.plants(state.plants);
     setCaption(r.name, r.text);
     renderBar();
+    if(afterEntry){curtain.classList.remove('on');afterEntry();return;}
     WD.walkIn(() => {
       say(S.pick(['manya', 'shket']), fill(S.pick(S.ENTER[id])));
       setTimeout(() => say('peng', fill(S.pick(S.ENTER.peng))), 900);
@@ -192,11 +212,17 @@ Object.assign(TOOLS, {
   hug: { label: 'Обнять', icon: '<path d="M0 14c-12-8-19-14-19-21 0-6 4.5-10 9.5-10 4 0 7 2.3 9.5 5.5 2.5-3.2 5.5-5.5 9.5-5.5 5 0 9.5 4 9.5 10 0 7-7 13-19 21z" fill="#ef6f78" stroke="#c94a58" stroke-width="2"/>' },
   box: { label: 'Сундук', icon: '<rect x="-16" y="-2" width="32" height="18" rx="2" fill="#b9773f" stroke="#7a4f2a" stroke-width="2"/><path d="M-16 -2Q0 -18 16 -2Z" fill="#c98a50" stroke="#7a4f2a" stroke-width="2"/><rect x="-3" y="-4" width="6" height="8" rx="1.5" fill="#e9b949"/>' },
 });
+TOOLS.drink={label:'Напоить',icon:'<path d="M-12 -10H10V4Q10 13 0 13H-2Q-12 13 -12 4Z" fill="#8dc6d4"/><path d="M10 -7Q24 -8 17 2Q15 6 10 6" stroke="#74a1b6" stroke-width="3" fill="none"/>'};
+TOOLS.shelf={label:'Находки',icon:TOOLS.box.icon};
 const ROOM_TOOLS = {
-  bedroom: ['feed', 'wear', 'hide', 'sleep'], kitchen: ['cook', 'feed', 'wear'], bath: ['bathe', 'duck', 'wear'],
-  balcony: ['water', 'bubbles', 'pigeon', 'wear'], hall: ['photo', 'hug', 'wear'], pantry: ['box', 'feed', 'wear'],
+  bedroom: ['feed', 'wear', 'hide', 'sleep'], kitchen: ['cook','drink','feed','wear'], bath: ['bathe', 'duck', 'wear'],
+  balcony: ['water', 'bubbles', 'pigeon', 'wear'], hall: ['photo', 'hug', 'wear'], pantry: ['box', 'shelf', 'feed', 'wear'],
 };
 function renderBar() {
+  if(mode==='home'){
+    const bar=$('bar');bar.style.gridTemplateColumns='1fr 1fr';
+    bar.innerHTML='<button class="mini" data-tool="day">К делам</button><button class="mini" data-tool="home">В спальню</button>';return;
+  }
   const list = ROOM_TOOLS[room] || ROOM_TOOLS.bedroom;
   const bar = $('bar');
   bar.style.gridTemplateColumns = `repeat(${list.length}, minmax(0, 1fr))`;
@@ -209,6 +235,10 @@ $('bar').addEventListener('click', e => {
   const b = e.target.closest('[data-tool]');
   if (!b) return;
   const id = b.dataset.tool;
+  if(id==='day')return day.menu();
+  if(id==='home')return show(false);
+  if(id==='shelf')return day.shelf();
+  if(id==='drink')return day.pickDrink();
   if (id === 'feed') openTray('food');
   else if (id === 'wear') openTray('wear');
   else if (id === 'hide') { if (mode === 'hide') show(false); else startHide(); }
@@ -245,7 +275,8 @@ function pickScene(ctx) {
   return pool[pool.length - 1].id;
 }
 function arrive() {
-  if (cinema.isOpen()) return;
+  if (cinema.isOpen() || day.active || !$('daySheet').hidden) return;
+  const selfServed=day.tidyAfterAbsence();
   // После отзыва серии сохранённая текущая сцена может больше не входить в каталог.
   if (state.cur && !S.byId[state.cur.id]) {
     state.cur = Object.assign({}, state.cur, { id: 'cuddle', label: 'Мы дома', variant: '', isNew: false });
@@ -261,6 +292,11 @@ function arrive() {
     return;
   }
   const premiere = !state.seen[S.FILM.id];
+  if(state.bedSince && state.cur && !premiere){
+    if(t-state.bedSince>=2*3600e3){room='bedroom';wakeUp();state.last=t;save();}
+    else if(mode!=='sleep'){toggleSleep();}
+    return;
+  }
   if (premiere || !state.cur || away > AWAY_MS) {
     const first = !state.cur;
     const ctx = ctxNow({ away, first });
@@ -277,6 +313,7 @@ function arrive() {
     save();
     show(true);
     if (premiere) openFilm();
+    else if(selfServed)say('shket','Мы сами позавтракали! Те крошки под подушкой… это не мои.');
     else if (!first) greet(S.HELLO);
   } else {
     state.last = t;
@@ -333,7 +370,10 @@ function talkVeta() {
 function talk(id) {
   if (id === 'veta') return talkVeta();
   if (mode === 'sleep') { WD.react(id, 'squish'); say(id, fill(S.pick(S.SLEEPY))); return; }
-  const hungry = !state.fed[id] || Date.now() - state.fed[id] > HUNGRY_MS;
+  const needs=day.statuses(id);
+  if(needs.water==='Хочет пить' && Math.random()<.4) {say(id,'Можно водички? Загляни в «Дела».');return;}
+  if(needs.sleep==='Клонит в сон' && Math.random()<.25){say(id,'Я бы уже под одеяло…');return;}
+  const hungry = needs.food==='Хочет есть' && (!state.fed[id] || Date.now() - state.fed[id] > HUNGRY_MS);
   let pool = hungry && Math.random() < 0.3 ? S.HUNGRY[id] : S.TALK[id];
   if (id === 'peng' && (state.pengHugs || 0) >= 3 && Math.random() < 0.4) pool = S.PENG_WARM;   // оттаял
   WD.react(id, 'squish');
@@ -359,6 +399,7 @@ const HOLD_MS = 550;
 let touch = null;
 let picked = null;          // выбранная в шторке вещь: { tray, id }
 stage.addEventListener('pointerdown', e => {
+  if(mode==='home')return;
   const stirring = mode === 'cook' && cook && cook.step === 'stir';
   const id = stirring ? null : WD.pickHero(e.clientX, e.clientY);
   touch = { id, stir: stirring, x: e.clientX, y: e.clientY, dist: 0, lastHeart: 0, done: false };
@@ -442,6 +483,9 @@ const ICON = {
   salad: '<path d="M-18 -2H18A18 16 0 0 1 -18 -2Z" fill="#bfe3d6" stroke="#8fbfae" stroke-width="2"/><g fill="#7dbf63"><circle cx="-8" cy="-4" r="6"/><circle cx="2" cy="-7" r="6"/><circle cx="10" cy="-3" r="5"/></g><rect x="-3" y="-10" width="3" height="9" rx="1.5" fill="#f08a3c" transform="rotate(30)"/><circle cx="-1" cy="-2" r="3" fill="#e5484d"/>',
   fishcakes: '<ellipse cx="0" cy="10" rx="20" ry="5" fill="#fff" stroke="#d3c7b8" stroke-width="1.5"/><g fill="#b9773f" stroke="#8a5a2b" stroke-width="1.4"><ellipse cx="-8" cy="4" rx="8" ry="5"/><ellipse cx="8" cy="4" rx="8" ry="5"/><ellipse cx="0" cy="-3" rx="8" ry="5"/></g><circle cx="14" cy="-4" r="4" fill="#ffe066"/>',
 };
+for(const [id,symbol] of Object.entries({oats:'🌾',curd:'🥣',berries:'🫐',turnovers:'🥐',curdcakes:'🥞',fishbake:'🍲',oatcookies:'🍪',berrymilk:'🥤',parfait:'🍨'})){
+  ICON[id]='<text y="12" font-size="34" text-anchor="middle">'+symbol+'</text>';
+}
 const tray = $('tray'), items = $('items');
 let trayKind = null;
 const HINT = {
@@ -586,7 +630,9 @@ function addIngredient(ing) {
   const btn = items.querySelector(`[data-item="${ing}"]`);
   if (btn) btn.classList.add('used');
   setPicked(null);
-  if (cook.added.length === cook.recipe.need.length) setTimeout(startStir, 700);
+  if(cook.added.length===cook.recipe.need.length){
+    const current=cook;setTimeout(()=>{if(cook===current && cook.step==='add')startStir();},700);
+  }
 }
 function startStir() {
   if (!cook) return;
@@ -609,9 +655,10 @@ function finishStir() {
   S.KITCHEN_LOOK.oven(WD);
   setCaption(cook.recipe.name, 'В духовке! Все смотрят и ждут…');
   say('peng', S.pick(S.COOK_LINES.bake));
+  const baking=cook;
   let n = 4;
   const tick = () => {
-    if (!cook || cook.step !== 'bake') return;
+    if (cook!==baking || cook.step !== 'bake') return;
     if (--n > 0) { $('story').textContent = `В духовке! Ещё ${n}…`; setTimeout(tick, 1000); return; }
     WD.cook.oven(false);
     serveDish();
@@ -628,19 +675,23 @@ function serveDish() {
 }
 function eatDish() {
   const r = cook.recipe;
+  for(const id of TOYS) if(r.likes[id]>0)day.meal(id,r.drink);
+  const session=cook;
   WD.cook.eat();
   ['manya', 'shket', 'peng'].forEach((id, i) => setTimeout(() => {
+    if(cook!==session)return;
     const like = r.likes[id];
     WD.react(id, like > 0 ? 'chomp' : 'squish');
     say(id, fill(S.pick(S.FEED[id][like])));
-    if (like > 0) { state.fed[id] = Date.now(); burst(id, like === 2 ? 4 : 2); }
+    if (like > 0) burst(id, like === 2 ? 4 : 2);
   }, 400 + i * 900));
   state.cooked[r.id] = (state.cooked[r.id] || 0) + 1;
   save();
   cook.step = 'done'; cook.look = null;
-  setTimeout(() => { if (cook) S.LAYOUT.kitchen(WD); }, 3200);
+  setTimeout(() => { if (cook===session && cook.step==='done') S.LAYOUT.kitchen(WD); }, 3200);
   const total = Object.values(state.cooked).reduce((a, b) => a + b, 0);
-  setCaption(r.name, `Все наелись. Это уже ${total}-е блюдо, которое вы приготовили вместе.`, { buttons: [['more', 'Ещё рецепт'], ['endcook', 'Хватит']] });
+  const afterMeal=r.drink?'Все напились и перекусили.':'Угощение готово. Можно готовить ещё!';
+  setCaption(r.name, `${afterMeal} Вместе приготовили блюд: ${total}.`, { buttons: [['more', 'Ещё рецепт'], ['endcook', 'Хватит']] });
 }
 function endCook() {
   closeTray();
@@ -799,20 +850,25 @@ function openChest() {
   if (state.boxDay === today()) {
     WD.react('shket', 'squish');
     say(S.pick(['manya', 'shket', 'peng']), S.pick(L.pantry.already));
-    setCaption('Кладовая', 'Сундук сегодня уже открывали. Загляни завтра — там будет что-то новое.');
+    setCaption('Кладовая', 'Сегодня сундук уже открывали. Собранные вещи можно достать с полки.', {buttons:[['finds','Мои находки']]});
     return;
   }
   state.boxDay = today();
-  const next = S.UNLOCKS.find(u => !state.unlocked.includes(u.id));
+  const next = [...S.UNLOCKS,...S.FINDS].find(u => !state.unlocked.includes(u.id));
   if (next) {
     state.unlocked.push(next.id); save();
-    WD.room.chest(true, next.id);
+    const isFind=S.FINDS.includes(next);
+    WD.room.chest(true, isFind?next:next.id);
     setTimeout(() => { ['manya', 'shket', 'peng'].forEach(id => WD.react(id, 'hop')); say('manya', 'Ого! Это мне? Нам!'); }, 900);
-    setCaption('Кладовая', `В сундуке — ${next.name.toLowerCase()}! Теперь это есть в гардеробе: жми «Нарядить».`);
+    if(isFind)setCaption('Кладовая',`Нашлась вещица — ${next.name.toLowerCase()}! Выбери, кому её подарить.`,{buttons:[['finds','Посмотреть находки']]});
+    else setCaption('Кладовая', `В сундуке — ${next.name.toLowerCase()}! Теперь это есть в гардеробе: жми «Нарядить».`);
   } else {
     save();
     WD.room.chest(true, null);
-    ['manya', 'shket', 'peng'].forEach((id, i) => setTimeout(() => { WD.react(id, 'chomp'); burst(id, 2); state.fed[id] = Date.now(); }, 600 + i * 400));
+    TOYS.forEach((id,i)=>{
+      state.fed[id]=Date.now();
+      setTimeout(()=>{if(room==='pantry'){WD.react(id,'chomp');burst(id,2);}},600+i*400);
+    });
     say('shket', L.pantry.treat);
     setCaption('Кладовая', 'Сегодня в сундуке печеньки — всех угостили. Завтра будет ещё.');
     save();
@@ -867,6 +923,10 @@ $('gameBtns').addEventListener('click', e => {
   const b = e.target.closest('[data-act]');
   if (!b) return;
   const act = b.dataset.act;
+  if(mode==='home')return day.action(act);
+  if(act==='finds')return day.shelf();
+  if(act==='join-story')return day.story(state.cur.id);
+  if(act==='day-needs')return day.accept();
   if (act === 'film') return openFilm(S.byId[state.cur.id]?.film || state.cur.id);
   if (mode === 'morning' && act === 'lift') return fixMorning('peng');
   if (mode === 'morning' && act === 'flip') return fixMorning('shket');
@@ -890,13 +950,32 @@ $('gameBtns').addEventListener('click', e => {
 
 /* ---------- уложить спать ---------- */
 /* как у Веты: Маня и Шкет у подушки, Пингвин в ногах — а утром он, конечно, на полу */
+function bedSetup(W){
+  S.sleepSetup(W);
+  if(state.bedCompanion==='peng'){
+    W.pose('peng',{x:-1.08,z:-.72,s:.62,ry:.35,eyes:'closed',anim:'sleep'});
+    W.pose('manya',{x:-.50,z:.83,s:.67,lie:'side',eyes:'closed',anim:'sleep'});
+  }else if(state.bedCompanion==='shket'){
+    W.pose('shket',{x:-.78,z:-.67,s:.74,ry:-.85,eyes:'closed',anim:'sleep'});
+    W.pose('manya',{x:.98,z:-.72,s:.8,ry:-.4,eyes:'closed',anim:'sleep'});
+  }
+  for(const id of TOYS){
+    const pos=W.heroPos(id);
+    for(const kind of ['mat','pillow']){
+      const item=day.selected(kind,id);
+      if(item.id)W.P.findItem(item,pos.x,pos.z+.24);
+    }
+  }
+}
 function toggleSleep() {
   closeTray();
   if (mode === 'sleep') return wakeUp();
+  day.sleep();roomChange++;curtain.classList.remove('on');
   room = 'bedroom'; mode = 'sleep'; game = null;
   setChrome('night');
-  WD.stage(S.sleepSetup, ctxNow({}), 'bedroom');
-  setCaption('Спокойной ночи', 'Тсс… Вета уснула: Маня и Шкет у подушки, Пингвин в ногах — как всегда. Посмотрим, долежит ли он до утра.');
+  WD.stage(bedSetup,ctxNow({}),'bedroom');
+  const beside=state.bedCompanion;
+  setCaption('Спокойной ночи',beside && S.WHO[beside] ? S.WHO[beside].name+' у подушки, вся компания под одеялом. Тихонько, уже спят…' : 'Тсс… Вета уснула: Маня и Шкет у подушки, Пингвин в ногах — как всегда. Посмотрим, долежит ли он до утра.');
   renderBar();
 }
 /* утро: Шкет звёздочкой пузом кверху, Пингвин на полу; morning — кого уже поправили */
@@ -905,7 +984,7 @@ function morningButtons() {
   return [!morning.shket && ['flip', 'Перевернуть Шкета'], !morning.peng && ['lift', 'Поднять Пингвина']].filter(Boolean);
 }
 function wakeUp() {
-  mode = 'morning'; morning = {};
+  day.wake(); mode = 'morning'; morning = {};
   setChrome('morning');
   WD.stage(S.morningSetup, ctxNow({ fixed: morning }), 'bedroom');
   setCaption('Доброе утро', 'Утро! Вета потягивается, кудри во все стороны. Маня сползла с подушки, Шкет — опять звёздочкой пузом кверху, а Пингвин… на полу. Как он туда попадает — загадка.', { buttons: morningButtons() });
@@ -994,6 +1073,7 @@ function renderDetail(id) {
 }
 let detailOpen = false;
 $('btnAlbum').addEventListener('click', () => {
+  if(mode==='home')show(false);
   state.fresh = [];
   save();
   updateBadge();
